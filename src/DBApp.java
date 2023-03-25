@@ -1,3 +1,5 @@
+package App;
+
 import java.io.File;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -9,16 +11,22 @@ import DBEngine.SQLTerm;
 
 public class DBApp {
 
-    private Table table;
+    private Vector<Table> tables;
+    private File metadataFile;
+    public static int intMaxRows;
+
+
     public static void main(String[] args) {
         
     }
 
     public void init() {
-        File f = new File("data");
-        if (!f.exists()) {
-            f.mkdir();
-        }
+        // create data folder if it doesn't exist
+        // go to data folder and create metadata.csv if it doesn't exist
+        // go to data folder and create config.properties if it doesn't exist
+        // read config.properties and set the values of the variables
+        // read metadata.csv and create the tables
+
         // do the rest of the initialization (Still need to figure out what that is)
     }
 
@@ -41,6 +49,38 @@ public class DBApp {
         //min/max values based on what?
         //add constraint to config file?
 
+        if (strTableName == null) {
+            throw new DBAppException("Table name is null");
+        }
+        if (htblColNameType.get(strClusteringKeyColumn) == null) {
+            throw new DBAppException("Clustering key column not found");
+        }
+        if (htblColNameMin.get(strClusteringKeyColumn) == null) {
+            throw new DBAppException("Clustering key column min value not found");
+        }
+        if (htblColNameMax.get(strClusteringKeyColumn) == null) {
+            throw new DBAppException("Clustering key column max value not found");
+        }
+        // verify datatype of all hashtables
+        if (!metadataFile.exists()) {
+            metadataFile = new File("/Data/metadata.csv");
+        }
+        else{
+            // read csv file and check if table exists
+            BufferedReader br = new BufferedReader(new FileReader("data/metadata.csv")); // read csv file
+            String line = br.readLine();
+            while (line != null) { // loop over all lines
+                String[] values = line.split(",");
+                if (values[0].equals(strTableName)) { // check if table name already exists
+                    throw new DBAppException("Table already exists"); // if it does, throw exception
+                }
+                line = br.readLine();
+            }
+            br.close();
+        }
+
+        // comment what this does bec im confused
+        String csvEntry = strTableName;
         Set<Entry<Integer, String> > entrySet = ht.entrySet();
         for (Entry<Integer, String> entry : entrySet) {
             String csvEntry = strTableName;
@@ -55,8 +95,8 @@ public class DBApp {
         }
 
 
-        table = new Table(trTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
-                htblColNameMax) // strPath
+        Table table = new Table(trTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
+                                htblColNameMax, "/Data/"); // not sure about the path
     }
 
     // following method creates an octree
@@ -76,6 +116,8 @@ public class DBApp {
     // htblColNameValue must include a value for the primary key
     public void insertIntoTable(String strTableName,
                                 Hashtable<String,Object> htblColNameValue) throws DBAppException {
+        // Rows should be sorted by primary key
+
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, insert the record
