@@ -9,6 +9,7 @@ import DBEngine.Page;
 import Exceptions.DBAppException;
 import DBEngine.SQLTerm;
 import DBEngine.Table;
+import com.opencsv.CSVWriter;
 
 public class DBApp {
 
@@ -77,9 +78,49 @@ public class DBApp {
         }
 
         // verify datatype of all hashtables
+        Set<Entry<String, String>> entrySet = htblColNameType.entrySet();
+        for(Entry<String, String> entry : entrySet){
+            String columnName = entry.getKey();
+            String columnType = entry.getValue();
+            if (columnType.equals("java.lang.Integer")) {
+                if (htblColNameMin.get(columnName) == null) {
+                    throw new DBAppException("Column min value not found");
+                }
+                if (htblColNameMax.get(columnName) == null) {
+                    throw new DBAppException("Column max value not found");
+                }
+            }
+            else if (columnType.equals("java.lang.Double")) {
+                if (htblColNameMin.get(columnName) == null) {
+                    throw new DBAppException("Column min value not found");
+                }
+                if (htblColNameMax.get(columnName) == null) {
+                    throw new DBAppException("Column max value not found");
+                }
+            }
+            else if (columnType.equals("java.lang.String")) {
+                if (htblColNameMin.get(columnName) == null) {
+                    throw new DBAppException("Column min value not found");
+                }
+                if (htblColNameMax.get(columnName) == null) {
+                    throw new DBAppException("Column max value not found");
+                }
+            }
+            else if (columnType.equals("java.util.Date")) {
+                if (htblColNameMin.get(columnName) == null) {
+                    throw new DBAppException("Column min value not found");
+                }
+                if (htblColNameMax.get(columnName) == null) {
+                    throw new DBAppException("Column max value not found");
+                }
+            }
+            else {
+                throw new DBAppException("Invalid data type");
+            }
+        }
 
         // check if table already exists
-        BufferedReader br = new BufferedReader(new FileReader("data/metadata.csv")); // read csv file
+        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
         String line = br.readLine();
         while (line != null) { // loop over all lines
             String[] values = line.split(",");
@@ -90,19 +131,20 @@ public class DBApp {
         }
         br.close();
 
-        // comment what this does bec im confused
-        String csvEntry = strTableName;
-        Set<Entry<String, String>> entrySet = htblColNameType.entrySet(); // what is ht???
+        // write to metadata file
+        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true));
+        //String csvEntry = strTableName;
+        entrySet = htblColNameType.entrySet(); // what is ht???
         for (Entry<String, String> entry : entrySet) {
-            csvEntry = strTableName;
+            //csvEntry = strTableName;
             String columnName = entry.getKey();
             String columnType = entry.getValue();
             boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
-            csvEntry += ", " + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
+            //csvEntry += ", " + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
             String min = htblColNameMin.get(columnName);
             String max = htblColNameMax.get(columnName);
-            csvEntry += min + "," + max;
-            //add to csv file
+            //csvEntry += min + "," + max;
+            String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
         }
 
 

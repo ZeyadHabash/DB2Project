@@ -43,9 +43,9 @@ public class Table implements Serializable {
         }
     }
 
-    // TODO : handle the case where the row is not found (?)
-    // TODO : handle deleting from a middle page
-    // TODO : sort rows after deleting
+    //TODO : handle the case where the row is not found (?)
+    //TODO : handle deleting from a middle page
+    //TODO : sort rows after deleting
     public void deleteRow(int intRowIndex){
         int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
         int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
