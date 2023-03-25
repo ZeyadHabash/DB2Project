@@ -8,6 +8,8 @@ import Exceptions.DBAppException;
 import DBEngine.SQLTerm;
 
 public class DBApp {
+
+    private Table table;
     public static void main(String[] args) {
         
     }
@@ -28,23 +30,31 @@ public class DBApp {
     // type as value
     // htblColNameMin and htblColNameMax for passing minimum and maximum values
     // for data in the column. Key is the name of the column
+    //
+    //create min and max hashtables in main before create table
     public void createTable(String strTableName,
                             String strClusteringKeyColumn,
                             Hashtable<String,String> htblColNameType,
                             Hashtable<String,String> htblColNameMin,
                             Hashtable<String,String> htblColNameMax ) throws DBAppException{
-        // Check if the table already exists
-        // If it does, throw an exception
-        // If it doesn't, create a new table
-        // Create a new table object
-        // Create a new table directory
-        // Create a new metadata file
-        // Create a new pages directory
-        // Create a new page file
-        // Create a new page object
-        // Add the page to the table
-        // Add the table to the database
-        // Save the table
+
+        //min/max values based on what?
+        //add constraint to config file?
+        String csvEntry = strTableName;
+        Set<Entry<Integer, String> > entrySet = ht.entrySet();
+        for (Entry<Integer, String> entry : entrySet) {
+            String columnName = entry.getKey();
+            String columnType = entry.getValue();
+            boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
+            csvEntry += "," + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
+            String min = htblColNameMin().get(columnName);
+            String max = htblColNameMax().get(columnName);
+            csvEntry += min + "," + max;
+        }
+        //add to csv file
+
+        table = new Table(trTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
+                htblColNameMax) // strPath
     }
 
     // following method creates an octree
@@ -70,6 +80,12 @@ public class DBApp {
         // Create a new record object
         // Add the record to the table
         // Save the table
+
+        //exceptions when inserting
+        /*
+        1-data type mismatch when comparing to csv
+        2-primary key duplicated
+         */
     }
     
     // following method updates one row only
