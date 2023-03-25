@@ -47,7 +47,7 @@ public class DBApp {
             String columnName = entry.getKey();
             String columnType = entry.getValue();
             boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
-            csvEntry += "," + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
+            csvEntry += ", " + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
             String min = htblColNameMin().get(columnName);
             String max = htblColNameMax().get(columnName);
             csvEntry += min + "," + max;
