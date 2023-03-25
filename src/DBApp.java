@@ -40,9 +40,10 @@ public class DBApp {
 
         //min/max values based on what?
         //add constraint to config file?
-        String csvEntry = strTableName;
+
         Set<Entry<Integer, String> > entrySet = ht.entrySet();
         for (Entry<Integer, String> entry : entrySet) {
+            String csvEntry = strTableName;
             String columnName = entry.getKey();
             String columnType = entry.getValue();
             boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
@@ -50,8 +51,9 @@ public class DBApp {
             String min = htblColNameMin().get(columnName);
             String max = htblColNameMax().get(columnName);
             csvEntry += min + "," + max;
+            //add to csv file
         }
-        //add to csv file
+
 
         table = new Table(trTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
                 htblColNameMax) // strPath
