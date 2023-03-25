@@ -112,4 +112,60 @@ public class DBApp {
         // Return the iterator
         return null;
     }
+
+
+
+
+    // helper functions
+
+    private void saveTable(Table table) {
+        // Save the table
+    }
+
+    private Table loadTable(String strTableName) {
+        // Load the table
+        return null;
+    }
+
+    private void savePage(Page page) {
+        // Save the page
+    }
+
+    private Page loadPage(String strTableName, int pageNumber) {
+        // Load the page
+        return null;
+    }
+
+    private void saveRecord(Record record) {
+        // Save the record
+    }
+
+    private Record loadRecord(String strTableName, int pageNumber, int recordNumber) {
+        // Load the record
+        return null;
+    }
+
+    private createMetaDataFile(String strTableName) {
+        // Create a new metadata file
+    }
+
+    private createTableDirectory(String strTableName) {
+        // Create a new table directory
+    }
+
+    private createPagesDirectory(String strTableName) {
+        // Create a new pages directory
+    }
+
+    private createPageFile(String strTableName, int pageNumber) {
+        // Create a new page file
+    }
+
+    private createIndexFile(String strTableName, String strIndexName) {
+        // Create a new index file
+    }
+
+    private createIndexDirectory(String strTableName, String strIndexName) {
+        // Create a new index directory
+    }
 }
