@@ -1,13 +1,14 @@
-package App;
+package DBEngine;
 
-import java.io.File;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Properties;
-import java.util.Vector;
+import java.io.*;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.Set;
 
+import DBEngine.Page;
 import Exceptions.DBAppException;
 import DBEngine.SQLTerm;
+import DBEngine.Table;
 
 public class DBApp {
 
@@ -21,6 +22,18 @@ public class DBApp {
     }
 
     public void init() {
+        File dataFolder = new File("data");
+        if (!dataFolder.exists()) {
+            dataFolder.mkdir();
+        }
+        metadataFile = new File("data/metadata.csv");
+        if (!metadataFile.exists()) {
+            try {
+                metadataFile.createNewFile();
+            } catch (Exception e) {
+                System.out.println("Error creating metadata file");
+            }
+        }
         // create data folder if it doesn't exist
         // go to data folder and create metadata.csv if it doesn't exist
         // go to data folder and create config.properties if it doesn't exist
@@ -44,11 +57,12 @@ public class DBApp {
                             String strClusteringKeyColumn,
                             Hashtable<String,String> htblColNameType,
                             Hashtable<String,String> htblColNameMin,
-                            Hashtable<String,String> htblColNameMax ) throws DBAppException{
+                            Hashtable<String,String> htblColNameMax ) throws DBAppException, IOException {
 
         //min/max values based on what?
         //add constraint to config file?
 
+        // verify that none of the inputs are null
         if (strTableName == null) {
             throw new DBAppException("Table name is null");
         }
@@ -61,42 +75,41 @@ public class DBApp {
         if (htblColNameMax.get(strClusteringKeyColumn) == null) {
             throw new DBAppException("Clustering key column max value not found");
         }
+
         // verify datatype of all hashtables
-        if (!metadataFile.exists()) {
-            metadataFile = new File("/Data/metadata.csv");
-        }
-        else{
-            // read csv file and check if table exists
-            BufferedReader br = new BufferedReader(new FileReader("data/metadata.csv")); // read csv file
-            String line = br.readLine();
-            while (line != null) { // loop over all lines
-                String[] values = line.split(",");
-                if (values[0].equals(strTableName)) { // check if table name already exists
-                    throw new DBAppException("Table already exists"); // if it does, throw exception
-                }
-                line = br.readLine();
+
+        // check if table already exists
+        BufferedReader br = new BufferedReader(new FileReader("data/metadata.csv")); // read csv file
+        String line = br.readLine();
+        while (line != null) { // loop over all lines
+            String[] values = line.split(",");
+            if (values[0].equals(strTableName)) { // check if table name already exists
+                throw new DBAppException("Table already exists"); // if it does, throw exception
             }
-            br.close();
+            line = br.readLine();
         }
+        br.close();
 
         // comment what this does bec im confused
         String csvEntry = strTableName;
-        Set<Entry<Integer, String> > entrySet = ht.entrySet();
-        for (Entry<Integer, String> entry : entrySet) {
-            String csvEntry = strTableName;
+        Set<Entry<String, String>> entrySet = htblColNameType.entrySet(); // what is ht???
+        for (Entry<String, String> entry : entrySet) {
+            csvEntry = strTableName;
             String columnName = entry.getKey();
             String columnType = entry.getValue();
             boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
             csvEntry += ", " + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
-            String min = htblColNameMin().get(columnName);
-            String max = htblColNameMax().get(columnName);
+            String min = htblColNameMin.get(columnName);
+            String max = htblColNameMax.get(columnName);
             csvEntry += min + "," + max;
             //add to csv file
         }
 
 
-        Table table = new Table(trTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
-                                htblColNameMax, "/Data/"); // not sure about the path
+        Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
+                                htblColNameMax, "data/"); // not sure about the path
+
+        tables.add(table); // add table to tables vector
     }
 
     // following method creates an octree
@@ -171,61 +184,5 @@ public class DBApp {
         // Save the table
         // Return the iterator
         return null;
-    }
-
-
-
-
-    // helper functions
-
-    private void saveTable(Table table) {
-        // Save the table
-    }
-
-    private Table loadTable(String strTableName) {
-        // Load the table
-        return null;
-    }
-
-    private void savePage(Page page) {
-        // Save the page
-    }
-
-    private Page loadPage(String strTableName, int pageNumber) {
-        // Load the page
-        return null;
-    }
-
-    private void saveRecord(Record record) {
-        // Save the record
-    }
-
-    private Record loadRecord(String strTableName, int pageNumber, int recordNumber) {
-        // Load the record
-        return null;
-    }
-
-    private createMetaDataFile(String strTableName) {
-        // Create a new metadata file
-    }
-
-    private createTableDirectory(String strTableName) {
-        // Create a new table directory
-    }
-
-    private createPagesDirectory(String strTableName) {
-        // Create a new pages directory
-    }
-
-    private createPageFile(String strTableName, int pageNumber) {
-        // Create a new page file
-    }
-
-    private createIndexFile(String strTableName, String strIndexName) {
-        // Create a new index file
-    }
-
-    private createIndexDirectory(String strTableName, String strIndexName) {
-        // Create a new index directory
     }
 }

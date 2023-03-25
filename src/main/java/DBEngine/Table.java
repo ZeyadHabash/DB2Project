@@ -1,12 +1,8 @@
 package DBEngine;
 
 import java.io.Serializable;
-import java.io.File;
 import java.util.Hashtable;
 import java.util.Vector;
-
-import DBEngine.Page;
-import App.DBApp;
 
 public class Table implements Serializable {
     private String _strTableName;
@@ -18,7 +14,8 @@ public class Table implements Serializable {
     private Vector<Page> _pages;
 
 
-    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String,String> htblColNameType, Hashtable<String,String> htblColNameMin, Hashtable<String,String> htblColNameMax, strPath) {
+    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String,String> htblColNameType,
+                 Hashtable<String,String> htblColNameMin, Hashtable<String,String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
         _strClusteringKeyColumn = strClusteringKeyColumn;
         _htblColNameType = htblColNameType;

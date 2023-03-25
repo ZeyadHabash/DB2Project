@@ -1,7 +1,6 @@
 package DBEngine;
 
-import java.io.Serializable;
-import java.io.File;
+import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -21,7 +20,7 @@ public class Page implements Serializable {
         savePage();
     }
 
-    public void addRow(HashTable<String,Object> htblNewRow){
+    public void addRow(Hashtable<String,Object> htblNewRow){
         _rows.add(htblNewRow);
         _intNumberOfRows++;
         savePage();
@@ -30,6 +29,11 @@ public class Page implements Serializable {
     public void deleteRow(int intRowIndex){
         _rows.remove(intRowIndex);
         _intNumberOfRows--;
+        savePage();
+    }
+
+    public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
+        _rows.set(intRowIndex, htblNewRow);
         savePage();
     }
 
