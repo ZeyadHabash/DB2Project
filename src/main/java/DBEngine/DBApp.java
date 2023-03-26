@@ -5,10 +5,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import DBEngine.Page;
 import Exceptions.DBAppException;
-import DBEngine.SQLTerm;
-import DBEngine.Table;
 import com.opencsv.CSVWriter;
 
 public class DBApp {
@@ -17,16 +14,17 @@ public class DBApp {
     private File metadataFile;
     public static int intMaxRows;
 
-
     public static void main(String[] args) {
-        
+
     }
 
     public void init() {
+        // create data folder if it doesn't exist
         File dataFolder = new File("data");
         if (!dataFolder.exists()) {
             dataFolder.mkdir();
         }
+        // go to data folder and create metadata.csv if it doesn't exist
         metadataFile = new File("data/metadata.csv");
         if (!metadataFile.exists()) {
             try {
@@ -35,11 +33,16 @@ public class DBApp {
                 System.out.println("Error creating metadata file");
             }
         }
-        // create data folder if it doesn't exist
-        // go to data folder and create metadata.csv if it doesn't exist
-        // go to data folder and create config.properties if it doesn't exist
-        // read config.properties and set the values of the variables
-        // read metadata.csv and create the tables
+        // get max rows from config file
+        Properties prop = new Properties();
+        try {
+            prop.load(new FileInputStream("src/main/resources/DBApp.config"));
+            intMaxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinTablePage"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // get max octree nodes from config file
 
         // do the rest of the initialization (Still need to figure out what that is)
     }
@@ -82,40 +85,15 @@ public class DBApp {
         for(Entry<String, String> entry : entrySet){
             String columnName = entry.getKey();
             String columnType = entry.getValue();
-            if (columnType.equals("java.lang.Integer")) {
-                if (htblColNameMin.get(columnName) == null) {
-                    throw new DBAppException("Column min value not found");
-                }
-                if (htblColNameMax.get(columnName) == null) {
-                    throw new DBAppException("Column max value not found");
-                }
-            }
-            else if (columnType.equals("java.lang.Double")) {
-                if (htblColNameMin.get(columnName) == null) {
-                    throw new DBAppException("Column min value not found");
-                }
-                if (htblColNameMax.get(columnName) == null) {
-                    throw new DBAppException("Column max value not found");
-                }
-            }
-            else if (columnType.equals("java.lang.String")) {
-                if (htblColNameMin.get(columnName) == null) {
-                    throw new DBAppException("Column min value not found");
-                }
-                if (htblColNameMax.get(columnName) == null) {
-                    throw new DBAppException("Column max value not found");
-                }
-            }
-            else if (columnType.equals("java.util.Date")) {
-                if (htblColNameMin.get(columnName) == null) {
-                    throw new DBAppException("Column min value not found");
-                }
-                if (htblColNameMax.get(columnName) == null) {
-                    throw new DBAppException("Column max value not found");
-                }
-            }
-            else {
+            if(!(columnType.equals("java.lang.Integer") || columnType.equals("java.lang.Double") || columnType.equals("java.lang.String") || columnType.equals("java.util.Date"))) {
                 throw new DBAppException("Invalid data type");
+            } else{
+                if(htblColNameMin.get(columnName) == null){
+                    throw new DBAppException("Column min value not found");
+                }
+                if(htblColNameMax.get(columnName) == null){
+                    throw new DBAppException("Column max value not found");
+                }
             }
         }
 
