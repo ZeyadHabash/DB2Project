@@ -15,7 +15,6 @@ public class DBApp {
     public static int intMaxRows;
 
     public static void main(String[] args) {
-
     }
 
     public void init() {
@@ -124,7 +123,6 @@ public class DBApp {
             //csvEntry += min + "," + max;
             String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
         }
-
 
         Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
                                 htblColNameMax, "data/"); // not sure about the path

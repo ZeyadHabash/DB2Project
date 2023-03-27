@@ -12,6 +12,7 @@ public class Table implements Serializable {
     private Hashtable<String,String> _htblColNameMin;
     private Hashtable<String,String> _htblColNameMax;
     private Vector<Page> _pages;
+    private int _intNumberOfRows;
 
 
     public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String,String> htblColNameType,
@@ -23,10 +24,15 @@ public class Table implements Serializable {
         _htblColNameMax = htblColNameMax;
         _strPath = strPath;
         _pages = new Vector<Page>();
+        _intNumberOfRows = 0;
+        for(Page page : _pages){
+            _intNumberOfRows += page.get_intNumberOfRows();
+        }
     }
 
     // TODO : sort rows after adding
-    public void addRow(Hashtable<String,Object> htblNewRow){
+    // TODO : function should take clustering key value as a parameter and insert the row in the correct place
+    public void insertRow(Hashtable<String,Object> htblNewRow){
         if(_pages.size() == 0){ // if no pages exist yet, create one and add the row to it
             Page page = new Page(0, _strPath, _strTableName);
             page.addRow(htblNewRow);
@@ -41,7 +47,9 @@ public class Table implements Serializable {
                 page.addRow(htblNewRow);
             }
         }
+        _intNumberOfRows++;
     }
+
 
     //TODO : handle the case where the row is not found (?)
     //TODO : handle deleting from a middle page
@@ -53,7 +61,17 @@ public class Table implements Serializable {
         page.deleteRow(intRowID); // delete the row from the page
         if(page.get_intNumberOfRows() == 0) { // delete the page if it is empty
             _pages.remove(intPageID);
+            page.deletePage();
+        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full and it is not the last page, merge it with the next page
+            Page nextPage = _pages.get(intPageID + 1);
+            page.addRow(nextPage.get_rows().get(0));
+            nextPage.deleteRow(0);
+            if(nextPage.get_intNumberOfRows() == 0){
+                _pages.remove(intPageID + 1);
+                nextPage.deletePage();
+            }
         }
+        _intNumberOfRows--;
     }
 
     //TODO : sort rows after updating
@@ -111,17 +129,6 @@ public class Table implements Serializable {
     public Vector<Page> get_pages() {
         return _pages;
     }
-    public void set_pages(Vector<Page> _pages) {
-        this._pages = _pages;
-    }
-
-    // idk if we need this but i thought i'd add it just in case
-    public int get_intNumberOfRows() {
-        int intNumberOfRows = 0;
-        for(Page page : _pages){
-            intNumberOfRows += page.get_intNumberOfRows();
-        }
-        return intNumberOfRows;
-    }
+    public int get_intNumberOfRows() {return _intNumberOfRows;}
 
 }

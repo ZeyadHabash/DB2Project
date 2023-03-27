@@ -50,6 +50,7 @@ public class Page implements Serializable {
         }
     }
 
+    // not sure if correct
     public void loadPage(){
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
@@ -68,6 +69,11 @@ public class Page implements Serializable {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    public void deletePage(){
+        File file = new File(_strPath + _strTableName + _intPageID + ".class");
+        file.delete();
     }
 
 
