@@ -26,6 +26,13 @@ public class Page implements Serializable {
         savePage();
     }
 
+    // overridden version of addRow that adds at a specific index instead of at end of page
+    public void addRow(Hashtable<String,Object> htblNewRow, int intRowIndex){
+        _rows.add(intRowIndex, htblNewRow);
+        _intNumberOfRows++;
+        savePage();
+    }
+
     public void deleteRow(int intRowIndex){
         _rows.remove(intRowIndex);
         _intNumberOfRows--;

@@ -27,27 +27,23 @@ public class Table implements Serializable {
         _strPath = strPath;
         _pages = new Vector<Page>();
         _intNumberOfRows = 0;
-        for(Page page : _pages){
-            _intNumberOfRows += page.get_intNumberOfRows();
-        }
     }
 
     // TODO : sort rows after adding
     // TODO : function should take clustering key value as a parameter and insert the row in the correct place
-    public void insertRow(Hashtable<String,Object> htblNewRow){
-        if(_pages.size() == 0){ // if no pages exist yet, create one and add the row to it
+    public void insertRow(Hashtable<String,Object> htblNewRow, int intRowIndex){
+        if(_pages.size() == 0) { // if no pages exist yet, create one and add the row to it
             Page page = new Page(0, _strPath, _strTableName);
             page.addRow(htblNewRow);
             _pages.add(page);
-        }else{
-            Page page = _pages.get(_pages.size() - 1);
-            if(page.get_intNumberOfRows() == DBApp.intMaxRows){ // if the last page is full, create a new one
-                Page newPage = new Page(_pages.size(), _strPath, _strTableName);
-                newPage.addRow(htblNewRow);
-                _pages.add(newPage);
-            }else{ // if the last page is not full, add the row to it
-                page.addRow(htblNewRow);
-            }
+        }else {
+            int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
+            int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
+            Page page = _pages.get(intPageID); // get the page
+            page.loadPage(); // load the page from the disk
+            page.addRow(htblNewRow, intRowID); // add the row to the page
+            if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
+                splitPage(page, intPageID);
         }
         _intNumberOfRows++;
     }
@@ -104,6 +100,24 @@ public class Table implements Serializable {
         return -1; // if row not found return -1
     }
 
+    public void splitPage(Page currPage, int intCurrPageID){
+        int lastRowIndex = currPage.get_rows().size()-1;
+        Hashtable<String,Object> lastRow = currPage.get_rows().get(lastRowIndex);
+
+        if(intCurrPageID == _pages.size() - 1){
+            Page newPage = new Page(_pages.size(), _strPath, _strTableName);
+            newPage.addRow(lastRow);
+            _pages.add(newPage);
+        }else{
+            int intNextPageID = intCurrPageID + 1;
+            Page nextPage = _pages.get(intNextPageID);
+            nextPage.loadPage();
+            nextPage.addRow(lastRow, 0);
+            if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows)
+                splitPage(nextPage, intNextPageID);
+        }
+        currPage.deleteRow(lastRowIndex);
+    }
 
 
     // getters and setters
