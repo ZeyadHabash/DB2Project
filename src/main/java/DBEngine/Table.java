@@ -1,5 +1,7 @@
 package DBEngine;
 
+import com.sun.rowset.internal.Row;
+
 import java.io.Serializable;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -58,12 +60,14 @@ public class Table implements Serializable {
         int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
         int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
         Page page = _pages.get(intPageID); // get the page
+        page.loadPage(); // load the page from the disk
         page.deleteRow(intRowID); // delete the row from the page
         if(page.get_intNumberOfRows() == 0) { // delete the page if it is empty
             _pages.remove(intPageID);
             page.deletePage();
         }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full and it is not the last page, merge it with the next page
             Page nextPage = _pages.get(intPageID + 1);
+            nextPage.loadPage(); // load next page from disk
             page.addRow(nextPage.get_rows().get(0));
             nextPage.deleteRow(0);
             if(nextPage.get_intNumberOfRows() == 0){
@@ -79,9 +83,26 @@ public class Table implements Serializable {
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
         Page page = _pages.get(intPageID);
+        page.loadPage();
         page.updateRow(intRowID, htblNewRow);
     }
 
+
+    public int getRowIndex(Hashtable<String,Object> htblColNameValue){
+        int intPageID = 0;
+        int intRowID = 0;
+        for(Page page : _pages){ // loop over all pages
+            page.loadPage();
+            for(Hashtable<String,Object> row : page.get_rows()){ // loop over all rows in a page
+                if(row.equals(htblColNameValue)){ // if row is equal to given row
+                    return intPageID * DBApp.intMaxRows + intRowID; // return the index
+                }
+                intRowID++; // if row does not match check the next row
+            }
+            intPageID++; // if row not found in current page check next page
+        }
+        return -1; // if row not found return -1
+    }
 
 
 

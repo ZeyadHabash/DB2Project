@@ -71,6 +71,7 @@ public class Page implements Serializable {
         }
     }
 
+
     public void deletePage(){
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         file.delete();
