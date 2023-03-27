@@ -83,8 +83,8 @@ public class Table implements Serializable {
         page.updateRow(intRowID, htblNewRow);
     }
 
-
-    public int getRowIndex(Hashtable<String,Object> htblColNameValue){
+    // Returns the index of the row in the table
+    public int getIndexFromRow(Hashtable<String,Object> htblColNameValue){
         int intPageID = 0;
         int intRowID = 0;
         for(Page page : _pages){ // loop over all pages
@@ -99,6 +99,16 @@ public class Table implements Serializable {
         }
         return -1; // if row not found return -1
     }
+
+    // Returns the row of a given index
+    public Hashtable<String,Object> getRowFromIndex(int intRowIndex){
+        int intPageID = intRowIndex / DBApp.intMaxRows;
+        int intRowID = intRowIndex % DBApp.intMaxRows;
+        Page page = _pages.get(intPageID);
+        page.loadPage();
+        return page.get_rows().get(intRowID);
+    }
+
 
     public void splitPage(Page currPage, int intCurrPageID){
         int lastRowIndex = currPage.get_rows().size()-1;
