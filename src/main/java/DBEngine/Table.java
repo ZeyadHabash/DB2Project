@@ -1,8 +1,6 @@
 package DBEngine;
 
-import com.sun.rowset.internal.Row;
-
-import java.io.Serializable;
+import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -129,6 +127,43 @@ public class Table implements Serializable {
         currPage.deleteRow(lastRowIndex);
     }
 
+    // should we have save table and load table methods?
+    public void saveTable(){
+        File file = new File(_strPath + _strTableName + ".class");
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(this);
+            oos.close();
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadTable(){
+        File file = new File(_strPath + _strTableName + ".class");
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Table table = (Table) ois.readObject();
+            ois.close();
+            fis.close();
+            _strTableName = table.get_strTableName();
+            _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
+            _htblColNameType = table.get_htblColNameType();
+            _htblColNameMin = table._htblColNameMin;
+            _htblColNameMax = table._htblColNameMax;
+            _strPath = table.get_strPath();
+            _pages = table.get_pages();
+            _intNumberOfRows = table.get_intNumberOfRows();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
     // getters and setters
 

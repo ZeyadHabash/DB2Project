@@ -44,7 +44,7 @@ public class Page implements Serializable {
         savePage();
     }
 
-    private void savePage(){
+    public void savePage(){
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(file);
