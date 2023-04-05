@@ -1,18 +1,17 @@
 package DBEngine;
 
-import java.io.*;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.Set;
-
 import Exceptions.DBAppException;
 import com.opencsv.CSVWriter;
 
+import java.io.*;
+import java.util.*;
+import java.util.Map.Entry;
+
 public class DBApp {
 
+    public static int intMaxRows;
     private Vector<Table> tables;
     private File metadataFile;
-    public static int intMaxRows;
 
     public static void main(String[] args) {
     }
@@ -32,6 +31,7 @@ public class DBApp {
                 System.out.println("Error creating metadata file");
             }
         }
+        // TODO: store min and max values in config file
         // get max rows from config file
         Properties prop = new Properties();
         try {
@@ -39,6 +39,34 @@ public class DBApp {
             intMaxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinTablePage"));
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+        // Read metadata.csv and add tables to tables vector
+        tables = new Vector<Table>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(metadataFile));
+            String line = br.readLine();
+            while (line != null) {
+                String[] lineData = line.split(",");
+                String tableName = lineData[0];
+                // check if table already exists
+                boolean tableExists = false;
+                for (Table table : tables) {
+                    if (table.get_strTableName().equals(tableName)) {
+                        tableExists = true;
+                        break;
+                    }
+                }
+                if (!tableExists) {
+                    Table newTable = new Table(tableName);
+                    newTable.loadTable();
+                    tables.add(newTable);
+                }
+                line = br.readLine();
+            }
+            br.close();
+        } catch (Exception e) {
+            System.out.println("Error reading metadata file");
         }
 
         // get max octree nodes from config file
@@ -58,9 +86,9 @@ public class DBApp {
     //create min and max hashtables in main before create table
     public void createTable(String strTableName,
                             String strClusteringKeyColumn,
-                            Hashtable<String,String> htblColNameType,
-                            Hashtable<String,String> htblColNameMin,
-                            Hashtable<String,String> htblColNameMax ) throws DBAppException, IOException {
+                            Hashtable<String, String> htblColNameType,
+                            Hashtable<String, String> htblColNameMin,
+                            Hashtable<String, String> htblColNameMax) throws DBAppException, IOException {
 
         //min/max values based on what?
         //add constraint to config file?
@@ -81,16 +109,16 @@ public class DBApp {
 
         // verify datatype of all hashtables
         Set<Entry<String, String>> entrySet = htblColNameType.entrySet();
-        for(Entry<String, String> entry : entrySet){
+        for (Entry<String, String> entry : entrySet) {
             String columnName = entry.getKey();
             String columnType = entry.getValue();
-            if(!(columnType.equals("java.lang.Integer") || columnType.equals("java.lang.Double") || columnType.equals("java.lang.String") || columnType.equals("java.util.Date"))) {
+            if (!(columnType.equals("java.lang.Integer") || columnType.equals("java.lang.Double") || columnType.equals("java.lang.String") || columnType.equals("java.util.Date"))) {
                 throw new DBAppException("Invalid data type");
-            } else{
-                if(htblColNameMin.get(columnName) == null){
+            } else {
+                if (htblColNameMin.get(columnName) == null) {
                     throw new DBAppException("Column min value not found");
                 }
-                if(htblColNameMax.get(columnName) == null){
+                if (htblColNameMax.get(columnName) == null) {
                     throw new DBAppException("Column max value not found");
                 }
             }
@@ -125,7 +153,7 @@ public class DBApp {
         }
 
         Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
-                                htblColNameMax, "data/"); // not sure about the path
+                htblColNameMax, "data/"); // not sure about the path
 
         tables.add(table); // add table to tables vector
     }
@@ -146,7 +174,7 @@ public class DBApp {
     // following method inserts one row only.
     // htblColNameValue must include a value for the primary key
     public void insertIntoTable(String strTableName,
-                                Hashtable<String,Object> htblColNameValue) throws DBAppException {
+                                Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Rows should be sorted by primary key
 
         // Check if the table exists
@@ -161,15 +189,52 @@ public class DBApp {
         1-data type mismatch when comparing to csv
         2-primary key duplicated
          */
+        Table tableToInsertInto = getTableFromName(strTableName);
+        Hashtable<String, Object> firstRow = tableToInsertInto.getRowFromIndex(0);
+        Hashtable<String, Object> lastRow = tableToInsertInto.getRowFromIndex(tableToInsertInto.get_intNumberOfRows() - 1);
+
+        //check if data type matches
+        Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
+        for (Entry<String, Object> entry : entrySet) {
+            String columnName = entry.getKey();
+            Object columnValue = entry.getValue();
+            String columnType = tableToInsertInto.get_htblColNameType().get(columnName);
+            if (columnType.equals("java.lang.Integer")) {
+                if (!(columnValue instanceof Integer)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.lang.Double")) {
+                if (!(columnValue instanceof Double)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.lang.String")) {
+                if (!(columnValue instanceof String)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.util.Date")) {
+                if (!(columnValue instanceof Date)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            }
+        }
+
+        //check if primary key is duplicated
+        int rowIndexToInsertAt = binarySearch(tableToInsertInto, 0, tableToInsertInto.get_intNumberOfRows(), htblColNameValue);
+        Object primaryKeyValue = tableToInsertInto.getClusteringKeyFromIndex(rowIndexToInsertAt);
+        if(primaryKeyValue.equals(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue))){
+            throw new DBAppException("Primary key duplicated");
+        }
+
+        tableToInsertInto.insertRow(htblColNameValue, rowIndexToInsertAt);
     }
-    
+
     // following method updates one row only
     // htblColNameValue holds the key and new value
     // htblColNameValue will not include clustering key as column name
     // strClusteringKeyValue is the value to look for to find the row to update.
     public void updateTable(String strTableName,
                             String strClusteringKeyValue,
-                            Hashtable<String,Object> htblColNameValue) throws DBAppException {
+                            Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, update the record
@@ -183,7 +248,7 @@ public class DBApp {
     // to identify which rows/tuples to delete.
     // htblColNameValue enteries are ANDED together
     public void deleteFromTable(String strTableName,
-                                Hashtable<String,Object> htblColNameValue) throws DBAppException {
+                                Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, delete the record
@@ -203,4 +268,39 @@ public class DBApp {
         // Return the iterator
         return null;
     }
+
+    private Table getTableFromName(String strTableName) throws DBAppException {
+        // Check if the table exists
+        // If it doesn't, throw an exception
+        // If it does, return the table
+        for (Table table : tables) {
+            if (table.get_strTableName().equals(strTableName)) {
+                return table;
+            }
+        }
+        throw new DBAppException("Table not found");
+    }
+
+
+    // TODO: test later
+    private int binarySearch(Table tableToInsertInto, int intIndexMin, int intIndexMax, Hashtable<String, Object> htblColNameValue) {
+        int intMid = (intIndexMin + intIndexMax) / 2;
+        Object objMid = tableToInsertInto.getClusteringKeyFromRow(tableToInsertInto.getRowFromIndex(intMid));
+        if (objMid.equals(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue))) {
+            return intMid;
+        } else if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) > 0) {
+            return binarySearch(tableToInsertInto, intIndexMin, intMid - 1, htblColNameValue);
+        } else if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) < 0) {
+            return binarySearch(tableToInsertInto, intMid + 1, intIndexMax, htblColNameValue);
+        }
+        if(intIndexMin == intIndexMax){
+            if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) > 0)
+                return intMid;
+            else
+                return intMid + 1;
+        }else{
+            return intIndexMax;
+        }
+    }
+
 }

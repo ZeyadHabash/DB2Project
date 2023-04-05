@@ -14,7 +14,6 @@ public class Table implements Serializable {
     private Vector<Page> _pages;
     private int _intNumberOfRows;
 
-
     public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String,String> htblColNameType,
                  Hashtable<String,String> htblColNameMin, Hashtable<String,String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
@@ -25,6 +24,11 @@ public class Table implements Serializable {
         _strPath = strPath;
         _pages = new Vector<Page>();
         _intNumberOfRows = 0;
+        saveTable();
+    }
+
+    public Table(String strTableName) {
+        _strTableName = strTableName;
     }
 
     // TODO : sort rows after adding
@@ -44,6 +48,7 @@ public class Table implements Serializable {
                 splitPage(page, intPageID);
         }
         _intNumberOfRows++;
+        saveTable();
     }
 
 
@@ -70,6 +75,7 @@ public class Table implements Serializable {
             }
         }
         _intNumberOfRows--;
+        saveTable();
     }
 
     //TODO : sort rows after updating
@@ -79,6 +85,28 @@ public class Table implements Serializable {
         Page page = _pages.get(intPageID);
         page.loadPage();
         page.updateRow(intRowID, htblNewRow);
+        saveTable();
+    }
+
+    public void splitPage(Page currPage, int intCurrPageID){
+        int lastRowIndex = currPage.get_rows().size()-1;
+        Hashtable<String,Object> lastRow = currPage.get_rows().get(lastRowIndex);
+
+        if(intCurrPageID == _pages.size() - 1){
+            Page newPage = new Page(_pages.size(), _strPath, _strTableName);
+            newPage.addRow(lastRow);
+            _pages.add(newPage);
+        }else{
+            int intNextPageID = intCurrPageID + 1;
+            Page nextPage = _pages.get(intNextPageID);
+            nextPage.loadPage();
+            nextPage.addRow(lastRow, 0);
+            if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows)
+                splitPage(nextPage, intNextPageID);
+        }
+        currPage.deleteRow(lastRowIndex);
+
+        saveTable();
     }
 
     // Returns the index of the row in the table
@@ -98,6 +126,26 @@ public class Table implements Serializable {
         return -1; // if row not found return -1
     }
 
+    public Hashtable<String,Object> getRowFromClusteringKey(Object objClusteringKeyValue){
+        int intPageID = 0;
+        int intRowID = 0;
+        for(Page page : _pages){ // loop over all pages
+            page.loadPage();
+            for(Hashtable<String,Object> row : page.get_rows()){ // loop over all rows in a page
+                if(row.get(_strClusteringKeyColumn).equals(objClusteringKeyValue)){ // if row is equal to given row
+                    return row; // return the row
+                }
+                intRowID++; // if row does not match check the next row
+            }
+            intPageID++; // if row not found in current page check next page
+        }
+        return null; // if row not found return null
+    }
+
+    public Object getClusteringKeyFromRow(Hashtable<String,Object> htblColNameValue){
+        return htblColNameValue.get(_strClusteringKeyColumn);
+    }
+
     // Returns the row of a given index
     public Hashtable<String,Object> getRowFromIndex(int intRowIndex){
         int intPageID = intRowIndex / DBApp.intMaxRows;
@@ -106,26 +154,10 @@ public class Table implements Serializable {
         page.loadPage();
         return page.get_rows().get(intRowID);
     }
-
-
-    public void splitPage(Page currPage, int intCurrPageID){
-        int lastRowIndex = currPage.get_rows().size()-1;
-        Hashtable<String,Object> lastRow = currPage.get_rows().get(lastRowIndex);
-
-        if(intCurrPageID == _pages.size() - 1){
-            Page newPage = new Page(_pages.size(), _strPath, _strTableName);
-            newPage.addRow(lastRow);
-            _pages.add(newPage);
-        }else{
-            int intNextPageID = intCurrPageID + 1;
-            Page nextPage = _pages.get(intNextPageID);
-            nextPage.loadPage();
-            nextPage.addRow(lastRow, 0);
-            if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows)
-                splitPage(nextPage, intNextPageID);
-        }
-        currPage.deleteRow(lastRowIndex);
+    public Object getClusteringKeyFromIndex(int intRowIndex){
+        return  getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
     }
+
 
     // should we have save table and load table methods?
     public void saveTable(){
@@ -141,7 +173,7 @@ public class Table implements Serializable {
         }
     }
 
-    public void loadTable(){
+    public Table loadTable(){
         File file = new File(_strPath + _strTableName + ".class");
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -149,20 +181,13 @@ public class Table implements Serializable {
             Table table = (Table) ois.readObject();
             ois.close();
             fis.close();
-            _strTableName = table.get_strTableName();
-            _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
-            _htblColNameType = table.get_htblColNameType();
-            _htblColNameMin = table._htblColNameMin;
-            _htblColNameMax = table._htblColNameMax;
-            _strPath = table.get_strPath();
-            _pages = table.get_pages();
-            _intNumberOfRows = table.get_intNumberOfRows();
-
+            return table;
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     // getters and setters
