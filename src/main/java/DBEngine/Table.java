@@ -27,8 +27,9 @@ public class Table implements Serializable {
         saveTable();
     }
 
-    public Table(String strTableName) {
+    public Table(String strTableName, String strPath) {
         _strTableName = strTableName;
+        _strPath = strPath;
     }
 
     // TODO : sort rows after adding
@@ -173,7 +174,7 @@ public class Table implements Serializable {
         }
     }
 
-    public Table loadTable(){
+    public void loadTable(){
         File file = new File(_strPath + _strTableName + ".class");
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -181,13 +182,19 @@ public class Table implements Serializable {
             Table table = (Table) ois.readObject();
             ois.close();
             fis.close();
-            return table;
+            _strTableName = table.get_strTableName();
+            _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
+            _htblColNameType = table.get_htblColNameType();
+            _htblColNameMin = table.get_htblColNameMin();
+            _htblColNameMax = table.get_htblColNameMax();
+            _strPath = table.get_strPath();
+            _pages = table.get_pages();
+            _intNumberOfRows = table.get_intNumberOfRows();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     // getters and setters

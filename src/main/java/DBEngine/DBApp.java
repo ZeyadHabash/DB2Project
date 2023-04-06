@@ -58,7 +58,7 @@ public class DBApp {
                     }
                 }
                 if (!tableExists) {
-                    Table newTable = new Table(tableName);
+                    Table newTable = new Table(tableName, "data/");
                     newTable.loadTable();
                     tables.add(newTable);
                 }
