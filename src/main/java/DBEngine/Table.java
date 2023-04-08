@@ -79,7 +79,6 @@ public class Table implements Serializable {
         saveTable();
     }
 
-    //TODO : sort rows after updating
     public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
