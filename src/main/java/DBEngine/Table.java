@@ -32,8 +32,6 @@ public class Table implements Serializable {
         _strPath = strPath;
     }
 
-    // TODO : sort rows after adding
-    // TODO : function should take clustering key value as a parameter and insert the row in the correct place
     public void insertRow(Hashtable<String,Object> htblNewRow, int intRowIndex){
         if(_pages.size() == 0) { // if no pages exist yet, create one and add the row to it
             Page page = new Page(0, _strPath, _strTableName);
@@ -49,6 +47,7 @@ public class Table implements Serializable {
                 splitPage(page, intPageID);
         }
         _intNumberOfRows++;
+        unloadAllPages();
         saveTable();
     }
 
@@ -65,7 +64,7 @@ public class Table implements Serializable {
         if(page.get_intNumberOfRows() == 0) { // delete the page if it is empty
             _pages.remove(intPageID);
             page.deletePage();
-        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full and it is not the last page, merge it with the next page
+        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full, and it is not the last page, merge it with the next page
             Page nextPage = _pages.get(intPageID + 1);
             nextPage.loadPage(); // load next page from disk
             page.addRow(nextPage.get_rows().get(0));
@@ -76,6 +75,7 @@ public class Table implements Serializable {
             }
         }
         _intNumberOfRows--;
+        unloadAllPages();
         saveTable();
     }
 
@@ -86,6 +86,7 @@ public class Table implements Serializable {
         Page page = _pages.get(intPageID);
         page.loadPage();
         page.updateRow(intRowID, htblNewRow);
+        unloadAllPages();
         saveTable();
     }
 
@@ -107,6 +108,7 @@ public class Table implements Serializable {
         }
         currPage.deleteRow(lastRowIndex);
 
+        unloadAllPages();
         saveTable();
     }
 
@@ -182,18 +184,29 @@ public class Table implements Serializable {
             Table table = (Table) ois.readObject();
             ois.close();
             fis.close();
-            _strTableName = table.get_strTableName();
             _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
             _htblColNameType = table.get_htblColNameType();
             _htblColNameMin = table.get_htblColNameMin();
             _htblColNameMax = table.get_htblColNameMax();
-            _strPath = table.get_strPath();
             _pages = table.get_pages();
             _intNumberOfRows = table.get_intNumberOfRows();
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+        }
+    }
+
+    public void unloadTable(){
+        _strClusteringKeyColumn = null;
+        _htblColNameType = null;
+        _htblColNameMin = null;
+        _htblColNameMax = null;
+        _pages = null;
+        _intNumberOfRows = 0;
+    }
+
+    public void unloadAllPages(){
+        for(Page page : _pages){
+            page.unloadPage();
         }
     }
 

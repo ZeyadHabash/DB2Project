@@ -59,7 +59,6 @@ public class DBApp {
                 }
                 if (!tableExists) {
                     Table newTable = new Table(tableName, "data/");
-                    newTable.loadTable();
                     tables.add(newTable);
                 }
                 line = br.readLine();
@@ -156,6 +155,7 @@ public class DBApp {
                 htblColNameMax, "data/"); // not sure about the path
 
         tables.add(table); // add table to tables vector
+        table.unloadTable(); // unload table from memory
     }
 
     // following method creates an octree
@@ -174,9 +174,7 @@ public class DBApp {
     // following method inserts one row only.
     // htblColNameValue must include a value for the primary key
     public void insertIntoTable(String strTableName,
-                                Hashtable<String, Object> htblColNameValue) throws DBAppException {
-        // Rows should be sorted by primary key
-
+                                Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, insert the record
@@ -189,16 +187,19 @@ public class DBApp {
         1-data type mismatch when comparing to csv
         2-primary key duplicated
          */
-        Table tableToInsertInto = getTableFromName(strTableName);
-        Hashtable<String, Object> firstRow = tableToInsertInto.getRowFromIndex(0);
-        Hashtable<String, Object> lastRow = tableToInsertInto.getRowFromIndex(tableToInsertInto.get_intNumberOfRows() - 1);
 
-        //check if data type matches
+        Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
+        tableToInsertInto.loadTable(); // load the table into memory
+
+        // verify that the input row violates no constraints
         Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
+        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
         for (Entry<String, Object> entry : entrySet) {
             String columnName = entry.getKey();
             Object columnValue = entry.getValue();
             String columnType = tableToInsertInto.get_htblColNameType().get(columnName);
+
+            // check if data type matches within the row
             if (columnType.equals("java.lang.Integer")) {
                 if (!(columnValue instanceof Integer)) {
                     throw new DBAppException("Data type mismatch");
@@ -216,16 +217,56 @@ public class DBApp {
                     throw new DBAppException("Data type mismatch");
                 }
             }
-        }
 
-        //check if primary key is duplicated
-        int rowIndexToInsertAt = binarySearch(tableToInsertInto, 0, tableToInsertInto.get_intNumberOfRows(), htblColNameValue);
-        Object primaryKeyValue = tableToInsertInto.getClusteringKeyFromIndex(rowIndexToInsertAt);
-        if(primaryKeyValue.equals(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue))){
-            throw new DBAppException("Primary key duplicated");
-        }
+            // check if data types match the table's data types
+            String line = br.readLine();
+            while (line != null) { // loop over all lines
+                String[] values = line.split(","); // split line into values
+                if (values[0].equals(strTableName) && values[1].equals(columnName)) { // check if table name and column name match
+                    if (!values[2].equals(columnType)) { // check if data types match
+                        throw new DBAppException("Data type mismatch"); // if they don't, throw exception
+                    }
+                    break; // if column name and table name match, break out of loop
+                }
+                line = br.readLine(); // read next line if column name and table name don't match
+            }
 
-        tableToInsertInto.insertRow(htblColNameValue, rowIndexToInsertAt);
+            // check if all columns are within min and max
+            if (columnValue instanceof Integer) {
+                int value = (int) columnValue;
+                int min = Integer.parseInt(tableToInsertInto.get_htblColNameMin().get(columnName));
+                int max = Integer.parseInt(tableToInsertInto.get_htblColNameMax().get(columnName));
+                if (value < min || value > max) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof Double) {
+                double value = (double) columnValue;
+                double min = Double.parseDouble(tableToInsertInto.get_htblColNameMin().get(columnName));
+                double max = Double.parseDouble(tableToInsertInto.get_htblColNameMax().get(columnName));
+                if (value < min || value > max) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof String) {
+                String value = (String) columnValue;
+                String min = tableToInsertInto.get_htblColNameMin().get(columnName);
+                String max = tableToInsertInto.get_htblColNameMax().get(columnName);
+                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof Date) {
+                Date value = (Date) columnValue;
+                Date min = new Date(tableToInsertInto.get_htblColNameMin().get(columnName));
+                Date max = new Date(tableToInsertInto.get_htblColNameMax().get(columnName));
+                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                    throw new DBAppException("Value out of range");
+                }
+            }
+        }
+        br.close();
+
+        binarySearchAndInsert(tableToInsertInto, htblColNameValue); // insert the record
+
+        tableToInsertInto.unloadTable(); // unload the table
     }
 
     // following method updates one row only
@@ -246,7 +287,7 @@ public class DBApp {
     // following method could be used to delete one or more rows.
     // htblColNameValue holds the key and value. This will be used in search
     // to identify which rows/tuples to delete.
-    // htblColNameValue enteries are ANDED together
+    // htblColNameValue entries are ANDed together
     public void deleteFromTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
@@ -269,6 +310,8 @@ public class DBApp {
         return null;
     }
 
+    // Helper methods
+
     private Table getTableFromName(String strTableName) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
@@ -282,25 +325,40 @@ public class DBApp {
     }
 
 
-    // TODO: test later
-    private int binarySearch(Table tableToInsertInto, int intIndexMin, int intIndexMax, Hashtable<String, Object> htblColNameValue) {
-        int intMid = (intIndexMin + intIndexMax) / 2;
-        Object objMid = tableToInsertInto.getClusteringKeyFromRow(tableToInsertInto.getRowFromIndex(intMid));
-        if (objMid.equals(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue))) {
-            return intMid;
-        } else if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) > 0) {
-            return binarySearch(tableToInsertInto, intIndexMin, intMid - 1, htblColNameValue);
-        } else if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) < 0) {
-            return binarySearch(tableToInsertInto, intMid + 1, intIndexMax, htblColNameValue);
+    private void binarySearchAndInsert(Table tableToInsertTo, Hashtable<String, Object> htblColNameValue) throws DBAppException {
+        int left = 0; // Initialize left index to 0
+        int right = tableToInsertTo.get_intNumberOfRows() - 1; // Initialize right index to last index of the array
+        int mid;
+        Object midClusteringKey;
+        Object newRowClusteringKey = tableToInsertTo.getClusteringKeyFromRow(htblColNameValue);
+
+        // Perform binary search to check if element exists
+        while (left <= right) { // Loop until left index becomes greater than right index
+            mid = (left + right) / 2; // Find the middle index
+            midClusteringKey = tableToInsertTo.getClusteringKeyFromRow(tableToInsertTo.getRowFromIndex(mid));
+            if (midClusteringKey.equals(newRowClusteringKey)) { // If the middle element is equal to the given element
+                throw new DBAppException("Primary key duplicated"); // Throw an exception
+            } else if (((Comparable) midClusteringKey).compareTo(newRowClusteringKey) < 0) { // If the middle element is less than the given element
+                left = mid + 1; // Update left index to mid+1
+            } else { // If the middle element is greater than the given element
+                right = mid - 1; // Update right index to mid-1
+            }
         }
-        if(intIndexMin == intIndexMax){
-            if (((Comparable) objMid).compareTo(tableToInsertInto.getClusteringKeyFromRow(htblColNameValue)) > 0)
-                return intMid;
-            else
-                return intMid + 1;
-        }else{
-            return intIndexMax;
-        }
+        // Element doesn't exist in the array, insert it at the correct position
+        tableToInsertTo.insertRow(htblColNameValue, left);
     }
 
+    private int binarySearch(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Hashtable<String, Object> htblColNameValue) {
+        int mid = (intMinIndex + intMaxIndex) / 2;
+        Object midClusteringKey = tableToSearchIn.getClusteringKeyFromRow(tableToSearchIn.getRowFromIndex(mid));
+        Object rowClusteringKey = tableToSearchIn.getClusteringKeyFromRow(htblColNameValue);
+        if (intMinIndex > intMaxIndex || mid < 0 || mid >= tableToSearchIn.get_intNumberOfRows())
+            return -1;
+        if (midClusteringKey.equals(rowClusteringKey))
+            return mid;
+        else if (((Comparable) midClusteringKey).compareTo(rowClusteringKey) > 0)
+            return binarySearch(tableToSearchIn, intMinIndex, mid - 1, htblColNameValue);
+        else
+            return binarySearch(tableToSearchIn, mid + 1, intMaxIndex, htblColNameValue);
+    }
 }
