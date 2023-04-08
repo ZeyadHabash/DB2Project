@@ -39,8 +39,25 @@ public class Page implements Serializable {
         savePage();
     }
 
+    /**
+     * Updates a row in a table by replacing the values of the old row with those of the new row.
+     * @param intRowIndex The index of the row to update.
+     * @param htblNewRow A Hashtable containing the new values for the row.
+     */
     public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
-        _rows.set(intRowIndex, htblNewRow);
+        // Retrieve the old row
+        Hashtable<String,Object> htblOldRow = _rows.get(intRowIndex);
+
+        // Iterate through each key-value pair in htblOldRow
+        htblOldRow.forEach((key, value) -> {
+            // If htblNewRow contains the same key, replace the value of that key in htblOldRow with the value of that key in htblNewRow
+            if(htblNewRow.containsKey(key)){
+                htblOldRow.remove(key);
+                htblOldRow.put(key, htblNewRow.get(key));
+            }
+        });
+
+        // Save the page
         savePage();
     }
 

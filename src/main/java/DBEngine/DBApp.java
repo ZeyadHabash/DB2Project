@@ -192,77 +192,7 @@ public class DBApp {
         tableToInsertInto.loadTable(); // load the table into memory
 
         // verify that the input row violates no constraints
-        Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
-        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
-        for (Entry<String, Object> entry : entrySet) {
-            String columnName = entry.getKey();
-            Object columnValue = entry.getValue();
-            String columnType = tableToInsertInto.get_htblColNameType().get(columnName);
-
-            // check if data type matches within the row
-            if (columnType.equals("java.lang.Integer")) {
-                if (!(columnValue instanceof Integer)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.lang.Double")) {
-                if (!(columnValue instanceof Double)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.lang.String")) {
-                if (!(columnValue instanceof String)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.util.Date")) {
-                if (!(columnValue instanceof Date)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            }
-
-            // check if data types match the table's data types
-            String line = br.readLine();
-            while (line != null) { // loop over all lines
-                String[] values = line.split(","); // split line into values
-                if (values[0].equals(strTableName) && values[1].equals(columnName)) { // check if table name and column name match
-                    if (!values[2].equals(columnType)) { // check if data types match
-                        throw new DBAppException("Data type mismatch"); // if they don't, throw exception
-                    }
-                    break; // if column name and table name match, break out of loop
-                }
-                line = br.readLine(); // read next line if column name and table name don't match
-            }
-
-            // check if all columns are within min and max
-            if (columnValue instanceof Integer) {
-                int value = (int) columnValue;
-                int min = Integer.parseInt(tableToInsertInto.get_htblColNameMin().get(columnName));
-                int max = Integer.parseInt(tableToInsertInto.get_htblColNameMax().get(columnName));
-                if (value < min || value > max) {
-                    throw new DBAppException("Value out of range");
-                }
-            } else if (columnValue instanceof Double) {
-                double value = (double) columnValue;
-                double min = Double.parseDouble(tableToInsertInto.get_htblColNameMin().get(columnName));
-                double max = Double.parseDouble(tableToInsertInto.get_htblColNameMax().get(columnName));
-                if (value < min || value > max) {
-                    throw new DBAppException("Value out of range");
-                }
-            } else if (columnValue instanceof String) {
-                String value = (String) columnValue;
-                String min = tableToInsertInto.get_htblColNameMin().get(columnName);
-                String max = tableToInsertInto.get_htblColNameMax().get(columnName);
-                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
-                    throw new DBAppException("Value out of range");
-                }
-            } else if (columnValue instanceof Date) {
-                Date value = (Date) columnValue;
-                Date min = new Date(tableToInsertInto.get_htblColNameMin().get(columnName));
-                Date max = new Date(tableToInsertInto.get_htblColNameMax().get(columnName));
-                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
-                    throw new DBAppException("Value out of range");
-                }
-            }
-        }
-        br.close();
+        verifyRow(tableToInsertInto, htblColNameValue);
 
         binarySearchAndInsert(tableToInsertInto, htblColNameValue); // insert the record
 
@@ -275,13 +205,27 @@ public class DBApp {
     // strClusteringKeyValue is the value to look for to find the row to update.
     public void updateTable(String strTableName,
                             String strClusteringKeyValue,
-                            Hashtable<String, Object> htblColNameValue) throws DBAppException {
+                            Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, update the record
         // Create a new record object
         // Add the record to the table
         // Save the table
+
+        Table tableToUpdate = getTableFromName(strTableName); // get reference to table
+        tableToUpdate.loadTable(); // load the table into memory
+
+        // verify that the input row violates no constraints
+        verifyRow(tableToUpdate, htblColNameValue);
+
+        // get the index of the row to update
+        int index = binarySearch(tableToUpdate, strClusteringKeyValue);
+
+        // update the row
+        tableToUpdate.updateRow(index, htblColNameValue);
+
+        // TODO: sort table after updating (?)
     }
 
     // following method could be used to delete one or more rows.
@@ -296,6 +240,20 @@ public class DBApp {
         // Create a new record object
         // Add the record to the table
         // Save the table
+
+        //exceptions when deleting
+        /*
+        1- no such row
+        ???
+         */
+
+        Table tableToDeleteFrom = getTableFromName(strTableName); // get reference to table
+        tableToDeleteFrom.loadTable(); // load the table into memory
+
+        // find indexes of rows to delete
+        // how to search? binary search? but it's unsorted??? idk tbh
+        // store all indexes to delete in an array the delete them? idk aswell
+
     }
 
     public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
@@ -324,6 +282,81 @@ public class DBApp {
         throw new DBAppException("Table not found");
     }
 
+    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException {
+        // verify that the input row violates no constraints
+        Set<Entry<String, Object>> entrySet = htblRow.entrySet();
+        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
+        for (Entry<String, Object> entry : entrySet) {
+            String columnName = entry.getKey();
+            Object columnValue = entry.getValue();
+            String columnType = table.get_htblColNameType().get(columnName);
+
+            // check if data type matches within the row
+            if (columnType.equals("java.lang.Integer")) {
+                if (!(columnValue instanceof Integer)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.lang.Double")) {
+                if (!(columnValue instanceof Double)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.lang.String")) {
+                if (!(columnValue instanceof String)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            } else if (columnType.equals("java.util.Date")) {
+                if (!(columnValue instanceof Date)) {
+                    throw new DBAppException("Data type mismatch");
+                }
+            }
+
+            // check if data types match the table's data types
+            String line = br.readLine();
+            while (line != null) { // loop over all lines
+                String[] values = line.split(","); // split line into values
+                if (values[0].equals(table.get_strTableName()) && values[1].equals(columnName)) { // check if table name and column name match
+                    if (!values[2].equals(columnType)) { // check if data types match
+                        throw new DBAppException("Data type mismatch"); // if they don't, throw exception
+                    }
+                    break; // if column name and table name match, break out of loop
+                }
+                line = br.readLine(); // read next line if column name and table name don't match
+            }
+
+            // check if all columns are within min and max
+            if (columnValue instanceof Integer) {
+                int value = (int) columnValue;
+                int min = Integer.parseInt(table.get_htblColNameMin().get(columnName));
+                int max = Integer.parseInt(table.get_htblColNameMax().get(columnName));
+                if (value < min || value > max) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof Double) {
+                double value = (double) columnValue;
+                double min = Double.parseDouble(table.get_htblColNameMin().get(columnName));
+                double max = Double.parseDouble(table.get_htblColNameMax().get(columnName));
+                if (value < min || value > max) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof String) {
+                String value = (String) columnValue;
+                String min = table.get_htblColNameMin().get(columnName);
+                String max = table.get_htblColNameMax().get(columnName);
+                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                    throw new DBAppException("Value out of range");
+                }
+            } else if (columnValue instanceof Date) {
+                Date value = (Date) columnValue;
+                Date min = new Date(table.get_htblColNameMin().get(columnName));
+                Date max = new Date(table.get_htblColNameMax().get(columnName));
+                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                    throw new DBAppException("Value out of range");
+                }
+            }
+        }
+        br.close();
+    }
+
 
     private void binarySearchAndInsert(Table tableToInsertTo, Hashtable<String, Object> htblColNameValue) throws DBAppException {
         int left = 0; // Initialize left index to 0
@@ -348,17 +381,28 @@ public class DBApp {
         tableToInsertTo.insertRow(htblColNameValue, left);
     }
 
-    private int binarySearch(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Hashtable<String, Object> htblColNameValue) {
+
+    // This method performs a binary search on a table object
+    private int binarySearch(Table tableToSearchIn, String strClusteringKeyValue) {
+        // Call the recursive helper method
+        return binarySearchHelper(tableToSearchIn, 0, tableToSearchIn.get_intNumberOfRows() - 1, strClusteringKeyValue);
+    }
+    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, String strClusteringKeyValue) {
+        // Calculate the middle index of the table
         int mid = (intMinIndex + intMaxIndex) / 2;
+        // Get the clustering key value of the row at the middle index
         Object midClusteringKey = tableToSearchIn.getClusteringKeyFromRow(tableToSearchIn.getRowFromIndex(mid));
-        Object rowClusteringKey = tableToSearchIn.getClusteringKeyFromRow(htblColNameValue);
+        // Check if the minimum index is greater than the maximum index, or if the middle index is out of bounds
         if (intMinIndex > intMaxIndex || mid < 0 || mid >= tableToSearchIn.get_intNumberOfRows())
-            return -1;
-        if (midClusteringKey.equals(rowClusteringKey))
-            return mid;
-        else if (((Comparable) midClusteringKey).compareTo(rowClusteringKey) > 0)
-            return binarySearch(tableToSearchIn, intMinIndex, mid - 1, htblColNameValue);
+            return -1; // Return -1 to indicate that the key value was not found
+
+        // Check if the clustering key value at the middle index matches the target value
+        if (midClusteringKey.equals(strClusteringKeyValue))
+            return mid; // Return the middle index as the result
+        // Check if the clustering key value at the middle index is greater than the target value
+        else if (((Comparable) midClusteringKey).compareTo(strClusteringKeyValue) > 0)
+            return binarySearchHelper(tableToSearchIn, intMinIndex, mid - 1, strClusteringKeyValue); // Recursively search in the left half of the table
         else
-            return binarySearch(tableToSearchIn, mid + 1, intMaxIndex, htblColNameValue);
+            return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
     }
 }
