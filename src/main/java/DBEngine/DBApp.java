@@ -13,7 +13,45 @@ public class DBApp {
     private Vector<Table> tables;
     private File metadataFile;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws DBAppException, IOException {
+        DBApp dbApp = new DBApp();
+        dbApp.init();
+        String strTableName = "Student";
+//        Hashtable<String, String> htblColNameType = new Hashtable<>();
+//        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
+//        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
+//
+//        htblColNameType.put("id", "java.lang.Integer");
+//        htblColNameMin.put("id", "0");
+//        htblColNameMax.put("id", "1000000000");
+//
+//        htblColNameType.put("name", "java.lang.String");
+//        htblColNameMin.put("name", "A");
+//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZZZZZZZZZ");
+//
+//        htblColNameType.put("gpa", "java.lang.Double");
+//        htblColNameMin.put("gpa", "0.0");
+//        htblColNameMax.put("gpa", "4.0");
+//
+//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+
+
+        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("id", new Integer(2343432));
+//        htblColNameValue.put("name", new String("Ahmed Noor"));
+//        htblColNameValue.put("gpa", new Double(0.95));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+        htblColNameValue.clear();
+        htblColNameValue.put("id", new Integer(453455));
+        htblColNameValue.put("name", new String("Ahmed Noor"));
+        htblColNameValue.put("gpa", new Double(0.95));
+        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(5674567));
+//        htblColNameValue.put("name", new String("Dalia Noor"));
+//        htblColNameValue.put("gpa", new Double(1.25));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+
     }
 
     public void init() {
@@ -64,6 +102,7 @@ public class DBApp {
                 line = br.readLine();
             }
             br.close();
+            tables.forEach(table -> System.out.println(table.get_strTableName())); // TODO: remove this
         } catch (Exception e) {
             System.out.println("Error reading metadata file");
         }
@@ -106,6 +145,12 @@ public class DBApp {
             throw new DBAppException("Clustering key column max value not found");
         }
 
+        // verify that table name is unique
+        for (Table table : tables) {
+            if (table.get_strTableName().equals(strTableName))
+                throw new DBAppException("Table name already exists");
+        }
+
         // verify datatype of all hashtables
         Set<Entry<String, String>> entrySet = htblColNameType.entrySet();
         for (Entry<String, String> entry : entrySet) {
@@ -136,21 +181,17 @@ public class DBApp {
         br.close();
 
         // write to metadata file
-        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true));
-        //String csvEntry = strTableName;
+        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER,CSVWriter.DEFAULT_LINE_END); // open csv file
         entrySet = htblColNameType.entrySet(); // what is ht???
         for (Entry<String, String> entry : entrySet) {
-            //csvEntry = strTableName;
-            String columnName = entry.getKey();
-            String columnType = entry.getValue();
-            boolean clusteringKey = columnName.equals(strClusteringKeyColumn);
-            //csvEntry += ", " + columnName + "," + columnType + "," + clusteringKey + ",null,null,";
-            String min = htblColNameMin.get(columnName);
-            String max = htblColNameMax.get(columnName);
-            //csvEntry += min + "," + max;
+            String columnName = entry.getKey(); // get column name
+            String columnType = entry.getValue(); // get column type
+            boolean clusteringKey = columnName.equals(strClusteringKeyColumn); // check if column is clustering key
+            String min = htblColNameMin.get(columnName); // get min value
+            String max = htblColNameMax.get(columnName); // get max value
             String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
         }
-
+        writer.close(); // close csv file
         Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
                 htblColNameMax, "data/"); // not sure about the path
 
@@ -251,9 +292,33 @@ public class DBApp {
         tableToDeleteFrom.loadTable(); // load the table into memory
 
         // find indexes of rows to delete
-        // how to search? binary search? but it's unsorted??? idk tbh
+        // how to search? binary search? but it's unsorted??? idk tbh :(
         // store all indexes to delete in an array the delete them? idk aswell
+        // or just delete them as we find them? idk
 
+        if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
+            // if the clustering key is in the hashtable, delete only one row
+            String clusteringKeyValue = (String) htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
+            int index = binarySearch(tableToDeleteFrom, clusteringKeyValue); // find the index of the row to delete using binary search
+            tableToDeleteFrom.deleteRow(index); // delete the row at that index
+        } else {
+            // if the clustering key is not in the hashtable, delete all rows that match the other conditions
+            // currently it goes through the rows linearly
+            // maybe try to switch it to use binary search? idk how though
+            for (int i = 0; i < tableToDeleteFrom.get_intNumberOfRows(); i++) { // loop through all rows in the table
+                boolean toDelete = true; // assume the row should be deleted
+                for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
+                    if (!tableToDeleteFrom.getRowFromIndex(i).get(entry.getKey()).equals(entry.getValue())) { // check if the row value matches the hashtable value for each column name
+                        toDelete = false; // if not, set toDelete to false and break the loop
+                        break;
+                    }
+                }
+                if (toDelete) { // if toDelete is still true after checking all columns
+                    tableToDeleteFrom.deleteRow(i); // delete the row
+                    i--; // decrement i to account for the deleted row
+                }
+            }
+        }
     }
 
     public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
@@ -399,7 +464,7 @@ public class DBApp {
         // Check if the clustering key value at the middle index matches the target value
         if (midClusteringKey.equals(strClusteringKeyValue))
             return mid; // Return the middle index as the result
-        // Check if the clustering key value at the middle index is greater than the target value
+            // Check if the clustering key value at the middle index is greater than the target value
         else if (((Comparable) midClusteringKey).compareTo(strClusteringKeyValue) > 0)
             return binarySearchHelper(tableToSearchIn, intMinIndex, mid - 1, strClusteringKeyValue); // Recursively search in the left half of the table
         else
