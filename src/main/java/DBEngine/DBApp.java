@@ -17,35 +17,35 @@ public class DBApp {
         DBApp dbApp = new DBApp();
         dbApp.init();
         String strTableName = "Student";
-//        Hashtable<String, String> htblColNameType = new Hashtable<>();
-//        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
-//        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
-//
-//        htblColNameType.put("id", "java.lang.Integer");
-//        htblColNameMin.put("id", "0");
-//        htblColNameMax.put("id", "1000000000");
-//
-//        htblColNameType.put("name", "java.lang.String");
-//        htblColNameMin.put("name", "A");
-//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZZZZZZZZZ");
-//
-//        htblColNameType.put("gpa", "java.lang.Double");
-//        htblColNameMin.put("gpa", "0.0");
-//        htblColNameMax.put("gpa", "4.0");
-//
-//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+        Hashtable<String, String> htblColNameType = new Hashtable<>();
+        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
+        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
+
+        htblColNameType.put("id", "java.lang.Integer");
+        htblColNameMin.put("id", "0");
+        htblColNameMax.put("id", "1000000000");
+
+        htblColNameType.put("name", "java.lang.String");
+        htblColNameMin.put("name", "A");
+        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZZZZZZZZZ");
+
+        htblColNameType.put("gpa", "java.lang.Double");
+        htblColNameMin.put("gpa", "0.0");
+        htblColNameMax.put("gpa", "4.0");
+
+        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
 
 
-        Hashtable htblColNameValue = new Hashtable();
+//        Hashtable htblColNameValue = new Hashtable();
 //        htblColNameValue.put("id", new Integer(2343432));
 //        htblColNameValue.put("name", new String("Ahmed Noor"));
 //        htblColNameValue.put("gpa", new Double(0.95));
 //        dbApp.insertIntoTable(strTableName, htblColNameValue);
-        htblColNameValue.clear();
-        htblColNameValue.put("id", new Integer(453455));
-        htblColNameValue.put("name", new String("Ahmed Noor"));
-        htblColNameValue.put("gpa", new Double(0.95));
-        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(453455));
+//        htblColNameValue.put("name", new String("Ahmed Noor"));
+//        htblColNameValue.put("gpa", new Double(0.95));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
 //        htblColNameValue.clear();
 //        htblColNameValue.put("id", new Integer(5674567));
 //        htblColNameValue.put("name", new String("Dalia Noor"));
@@ -190,6 +190,7 @@ public class DBApp {
             String min = htblColNameMin.get(columnName); // get min value
             String max = htblColNameMax.get(columnName); // get max value
             String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
+            writer.writeNext(csvEntry); // write csv entry to csv file
         }
         writer.close(); // close csv file
         Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
