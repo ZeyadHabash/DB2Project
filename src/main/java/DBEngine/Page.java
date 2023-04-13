@@ -96,11 +96,8 @@ public class Page implements Serializable {
     }
 
     public void unloadPage(){
-        _intPageID = 0;
         _intNumberOfRows = 0;
         _rows = null;
-        _strPath = null;
-        _strTableName = null;
     }
 
 
