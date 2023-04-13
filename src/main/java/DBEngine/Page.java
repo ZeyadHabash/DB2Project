@@ -47,15 +47,19 @@ public class Page implements Serializable {
     public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
         // Retrieve the old row
         Hashtable<String,Object> htblOldRow = _rows.get(intRowIndex);
+        Vector<String> keys = new Vector<String>();
 
         // Iterate through each key-value pair in htblOldRow
         htblOldRow.forEach((key, value) -> {
             // If htblNewRow contains the same key, replace the value of that key in htblOldRow with the value of that key in htblNewRow
             if(htblNewRow.containsKey(key)){
-                htblOldRow.remove(key);
-                htblOldRow.put(key, htblNewRow.get(key));
+                keys.add(key);
             }
         });
+
+        for(int i = 0; i < keys.size(); i++){
+            htblOldRow.replace(keys.get(i), htblNewRow.get(keys.get(i)));
+        }
 
         // Save the page
         savePage();
@@ -106,6 +110,16 @@ public class Page implements Serializable {
         file.delete();
     }
 
+    @Override
+    public String toString() {
+        String rows = "Page ID: " + _intPageID + "\n";
+        for (int i = 0; i < _rows.size(); i++) {
+            rows += _rows.get(i).toString() + "\n";
+        }
+        return rows;
+    }
+
+    // Getters and Setters
 
     public int get_intPageID() {
         return _intPageID;

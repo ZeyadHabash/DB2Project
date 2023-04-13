@@ -17,6 +17,7 @@ public class DBApp {
         DBApp dbApp = new DBApp();
         dbApp.init();
         String strTableName = "Student";
+
 //        Hashtable<String, String> htblColNameType = new Hashtable<>();
 //        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
 //        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
@@ -27,7 +28,7 @@ public class DBApp {
 //
 //        htblColNameType.put("name", "java.lang.String");
 //        htblColNameMin.put("name", "A");
-//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZZZZZZZZZ");
+//        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
 //
 //        htblColNameType.put("gpa", "java.lang.Double");
 //        htblColNameMin.put("gpa", "0.0");
@@ -36,21 +37,42 @@ public class DBApp {
 //        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
 
 
-        Hashtable htblColNameValue = new Hashtable();
-//        htblColNameValue.put("id", new Integer(2343432));
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("id", new Integer(28102));
 //        htblColNameValue.put("name", new String("Ahmed Noor"));
 //        htblColNameValue.put("gpa", new Double(0.95));
 //        dbApp.insertIntoTable(strTableName, htblColNameValue);
 //        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(453455));
+//        htblColNameValue.put("id", new Integer(19282));
 //        htblColNameValue.put("name", new String("Ahmed Noor"));
 //        htblColNameValue.put("gpa", new Double(0.95));
 //        dbApp.insertIntoTable(strTableName, htblColNameValue);
 //        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(5674567));
+//        htblColNameValue.put("id", new Integer(21903));
 //        htblColNameValue.put("name", new String("Dalia Noor"));
 //        htblColNameValue.put("gpa", new Double(1.25));
 //        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(1));
+//        htblColNameValue.put("name", new String("tester"));
+//        htblColNameValue.put("gpa", new Double(2.5));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+
+//        htblColNameValue.clear();
+//        htblColNameValue.put("name", "Ahmed Noor");
+//        dbApp.deleteFromTable(strTableName, htblColNameValue);
+
+//        htblColNameValue.clear();
+//        htblColNameValue.put("gpa", 3.243);
+//        htblColNameValue.put("name", "testing update");
+//        dbApp.updateTable(strTableName, String.valueOf(21903), htblColNameValue);
+
+
+//        System.out.println("Done");
+//        dbApp.getTableFromName(strTableName).loadTable();
+//        System.out.println(dbApp.getTableFromName(strTableName).toString());
+//        dbApp.getTableFromName(strTableName).unloadTable();
     }
 
     public void init() {
@@ -260,8 +282,12 @@ public class DBApp {
         // verify that the input row violates no constraints
         verifyRow(tableToUpdate, htblColNameValue);
 
+        // cast the clustering key value to the correct type
+        String clusteringKeyDataType = tableToUpdate.get_htblColNameType().get(tableToUpdate.get_strClusteringKeyColumn());
+        Object adjustedClusteringKeyValue = castValue(clusteringKeyDataType, strClusteringKeyValue);
+
         // get the index of the row to update
-        int index = binarySearch(tableToUpdate, strClusteringKeyValue);
+        int index = binarySearch(tableToUpdate, adjustedClusteringKeyValue);
 
         // update the row
         tableToUpdate.updateRow(index, htblColNameValue);
@@ -298,7 +324,7 @@ public class DBApp {
 
         if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
             // if the clustering key is in the hashtable, delete only one row
-            String clusteringKeyValue = (String) htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
+            Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
             int index = binarySearch(tableToDeleteFrom, clusteringKeyValue); // find the index of the row to delete using binary search
             tableToDeleteFrom.deleteRow(index); // delete the row at that index
         } else {
@@ -448,11 +474,11 @@ public class DBApp {
 
 
     // This method performs a binary search on a table object
-    private int binarySearch(Table tableToSearchIn, String strClusteringKeyValue) {
+    private int binarySearch(Table tableToSearchIn, Object strClusteringKeyValue) {
         // Call the recursive helper method
         return binarySearchHelper(tableToSearchIn, 0, tableToSearchIn.get_intNumberOfRows() - 1, strClusteringKeyValue);
     }
-    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, String strClusteringKeyValue) {
+    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Object strClusteringKeyValue) {
         // Calculate the middle index of the table
         int mid = (intMinIndex + intMaxIndex) / 2;
         // Get the clustering key value of the row at the middle index
@@ -469,5 +495,18 @@ public class DBApp {
             return binarySearchHelper(tableToSearchIn, intMinIndex, mid - 1, strClusteringKeyValue); // Recursively search in the left half of the table
         else
             return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
+    }
+    
+    private Object castValue(String type, String value) {
+        if (type.equals("java.lang.Integer")) {
+            return Integer.parseInt(value);
+        } else if (type.equals("java.lang.Double")) {
+            return Double.parseDouble(value);
+        } else if (type.equals("java.lang.String")) {
+            return (String) value;
+        } else if (type.equals("java.util.Date")) {
+            return new Date(value);
+        }
+        return null;
     }
 }

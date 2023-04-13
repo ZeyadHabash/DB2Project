@@ -40,11 +40,17 @@ public class Table implements Serializable {
         }else {
             int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
             int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
-            Page page = _pages.get(intPageID); // get the page
-            page.loadPage(); // load the page from the disk
-            page.addRow(htblNewRow, intRowID); // add the row to the page
-            if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
-                splitPage(page, intPageID);
+            if (intPageID >= _pages.size()) { // if the page doesn't exist yet, create it and add the row to it
+                Page page = new Page(intPageID, _strPath, _strTableName);
+                page.addRow(htblNewRow);
+                _pages.add(page);
+            } else { // if the page exists, add the row to it
+                Page page = _pages.get(intPageID);
+                page.loadPage();
+                page.addRow(htblNewRow, intRowID);
+                if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
+                    splitPage(page, intPageID);
+            }
         }
         _intNumberOfRows++;
         unloadAllPages();
@@ -208,6 +214,20 @@ public class Table implements Serializable {
             page.unloadPage();
         }
     }
+
+    @Override
+    public String toString() {
+        String pages = "";
+        for (Page page : _pages) {
+            page.loadPage();
+            pages += page.toString() + "\n";
+        }
+        unloadAllPages();
+        return pages;
+
+    }
+
+
 
     // getters and setters
 
