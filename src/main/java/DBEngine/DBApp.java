@@ -296,7 +296,6 @@ public class DBApp {
         // update the row
         tableToUpdate.updateRow(index, htblColNameValue);
 
-        // TODO: sort table after updating (?)
     }
 
     // following method could be used to delete one or more rows.
