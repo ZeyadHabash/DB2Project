@@ -1,5 +1,7 @@
 package DBEngine;
 
+import Exceptions.DBAppException;
+
 import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -155,14 +157,16 @@ public class Table implements Serializable {
     }
 
     // Returns the row of a given index
-    public Hashtable<String,Object> getRowFromIndex(int intRowIndex){
+    public Hashtable<String,Object> getRowFromIndex(int intRowIndex) throws DBAppException {
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
+        if(intPageID >= _pages.size())
+            throw new DBAppException("row does not exist");
         Page page = _pages.get(intPageID);
         page.loadPage();
         return page.get_rows().get(intRowID);
     }
-    public Object getClusteringKeyFromIndex(int intRowIndex){
+    public Object getClusteringKeyFromIndex(int intRowIndex) throws DBAppException {
         return  getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
     }
 

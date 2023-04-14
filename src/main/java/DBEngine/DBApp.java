@@ -4,8 +4,10 @@ import Exceptions.DBAppException;
 import com.opencsv.CSVWriter;
 
 import java.io.*;
+import java.text.ParseException;
 import java.util.*;
 import java.util.Map.Entry;
+import java.text.SimpleDateFormat;
 
 public class DBApp {
 
@@ -13,28 +15,30 @@ public class DBApp {
     private Vector<Table> tables;
     private File metadataFile;
 
+    private String strDataFolderPath = "src/main/resources/data";
+
     public static void main(String[] args) throws DBAppException, IOException {
         DBApp dbApp = new DBApp();
         dbApp.init();
         String strTableName = "Student";
 
-//        Hashtable<String, String> htblColNameType = new Hashtable<>();
-//        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
-//        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
-//
-//        htblColNameType.put("id", "java.lang.Integer");
-//        htblColNameMin.put("id", "0");
-//        htblColNameMax.put("id", "1000000000");
-//
-//        htblColNameType.put("name", "java.lang.String");
-//        htblColNameMin.put("name", "A");
-//        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
-//
-//        htblColNameType.put("gpa", "java.lang.Double");
-//        htblColNameMin.put("gpa", "0.0");
-//        htblColNameMax.put("gpa", "4.0");
-//
-//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+        Hashtable<String, String> htblColNameType = new Hashtable<>();
+        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
+        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
+
+        htblColNameType.put("id", "java.lang.Integer");
+        htblColNameMin.put("id", "0");
+        htblColNameMax.put("id", "1000000000");
+
+        htblColNameType.put("name", "java.lang.String");
+        htblColNameMin.put("name", "A");
+        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+
+        htblColNameType.put("gpa", "java.lang.Double");
+        htblColNameMin.put("gpa", "0.0");
+        htblColNameMax.put("gpa", "4.0");
+
+        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
 
 
 //        Hashtable htblColNameValue = new Hashtable();
@@ -77,12 +81,12 @@ public class DBApp {
 
     public void init() {
         // create data folder if it doesn't exist
-        File dataFolder = new File("data");
+        File dataFolder = new File(strDataFolderPath);
         if (!dataFolder.exists()) {
             dataFolder.mkdir();
         }
         // go to data folder and create metadata.csv if it doesn't exist
-        metadataFile = new File("data/metadata.csv");
+        metadataFile = new File("src/main/resources/metadata.csv");
         if (!metadataFile.exists()) {
             try {
                 metadataFile.createNewFile();
@@ -117,7 +121,7 @@ public class DBApp {
                     }
                 }
                 if (!tableExists) {
-                    Table newTable = new Table(tableName, "data/");
+                    Table newTable = new Table(tableName, strDataFolderPath + "/");
                     tables.add(newTable);
                 }
                 line = br.readLine();
@@ -215,7 +219,7 @@ public class DBApp {
         }
         writer.close(); // close csv file
         Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
-                htblColNameMax, "data/"); // not sure about the path
+                htblColNameMax, strDataFolderPath + "/"); // not sure about the path
 
         tables.add(table); // add table to tables vector
         table.unloadTable(); // unload table from memory
@@ -373,7 +377,7 @@ public class DBApp {
         throw new DBAppException("Table not found");
     }
 
-    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException {
+    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException{
         // verify that the input row violates no constraints
         Set<Entry<String, Object>> entrySet = htblRow.entrySet();
         BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
@@ -381,6 +385,11 @@ public class DBApp {
             String columnName = entry.getKey();
             Object columnValue = entry.getValue();
             String columnType = table.get_htblColNameType().get(columnName);
+
+            // check if column exists
+            if (columnType == null) {
+                throw new DBAppException("Column not found");
+            }
 
             // check if data type matches within the row
             if (columnType.equals("java.lang.Integer")) {
@@ -438,10 +447,15 @@ public class DBApp {
                 }
             } else if (columnValue instanceof Date) {
                 Date value = (Date) columnValue;
-                Date min = new Date(table.get_htblColNameMin().get(columnName));
-                Date max = new Date(table.get_htblColNameMax().get(columnName));
-                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
-                    throw new DBAppException("Value out of range");
+                try {
+                    Date min = new SimpleDateFormat("yyyy-MM-dd").parse(table.get_htblColNameMin().get(columnName));
+                    Date max = new SimpleDateFormat("yyyy-MM-dd").parse(table.get_htblColNameMax().get(columnName));
+
+                    if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                        throw new DBAppException("Value out of range");
+                    }
+                }catch (ParseException e) {
+                    throw new DBAppException("Date format is incorrect");
                 }
             }
         }
@@ -474,11 +488,11 @@ public class DBApp {
 
 
     // This method performs a binary search on a table object
-    private int binarySearch(Table tableToSearchIn, Object strClusteringKeyValue) {
+    private int binarySearch(Table tableToSearchIn, Object strClusteringKeyValue) throws DBAppException {
         // Call the recursive helper method
         return binarySearchHelper(tableToSearchIn, 0, tableToSearchIn.get_intNumberOfRows() - 1, strClusteringKeyValue);
     }
-    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Object strClusteringKeyValue) {
+    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Object strClusteringKeyValue) throws DBAppException {
         // Calculate the middle index of the table
         int mid = (intMinIndex + intMaxIndex) / 2;
         // Get the clustering key value of the row at the middle index
@@ -497,15 +511,27 @@ public class DBApp {
             return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
     }
     
-    private Object castValue(String type, String value) {
+    private Object castValue(String type, String value) throws DBAppException {
         if (type.equals("java.lang.Integer")) {
-            return Integer.parseInt(value);
+            try{
+                return Integer.parseInt(value);
+            }catch(NumberFormatException e){
+                throw new DBAppException("Invalid integer value");
+            }
         } else if (type.equals("java.lang.Double")) {
-            return Double.parseDouble(value);
+            try {
+                return Double.parseDouble(value);
+            }catch(NumberFormatException e){
+                throw new DBAppException("Invalid double value");
+            }
         } else if (type.equals("java.lang.String")) {
             return (String) value;
         } else if (type.equals("java.util.Date")) {
-            return new Date(value);
+            try {
+                return new SimpleDateFormat("yyyy-MM-dd").parse(value);
+            } catch (ParseException e) {
+                throw new DBAppException("Invalid date format (yyyy-MM-dd)");
+            }
         }
         return null;
     }
