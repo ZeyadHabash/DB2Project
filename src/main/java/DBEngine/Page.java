@@ -5,35 +5,35 @@ import java.util.Hashtable;
 import java.util.Vector;
 
 public class Page implements Serializable {
-    private int _intPageID;
+    private transient int _intPageID;
     private int _intNumberOfRows;
-    private Vector<Hashtable<String,Object>> _rows;
-    private String _strPath;
+    private Vector<Hashtable<String, Object>> _rows;
+    private transient String _strPath;
     private String _strTableName;
 
     public Page(int intPageID, String strPath, String strTableName) {
         _intPageID = intPageID;
         _intNumberOfRows = 0;
-        _rows = new Vector<Hashtable<String,Object>>();
+        _rows = new Vector<Hashtable<String, Object>>();
         _strPath = strPath;
         _strTableName = strTableName;
         savePage();
     }
 
-    public void addRow(Hashtable<String,Object> htblNewRow){
+    public void addRow(Hashtable<String, Object> htblNewRow) {
         _rows.add(htblNewRow);
         _intNumberOfRows++;
         savePage();
     }
 
     // overridden version of addRow that adds at a specific index instead of at end of page
-    public void addRow(Hashtable<String,Object> htblNewRow, int intRowIndex){
+    public void addRow(Hashtable<String, Object> htblNewRow, int intRowIndex) {
         _rows.add(intRowIndex, htblNewRow);
         _intNumberOfRows++;
         savePage();
     }
 
-    public void deleteRow(int intRowIndex){
+    public void deleteRow(int intRowIndex) {
         _rows.remove(intRowIndex);
         _intNumberOfRows--;
         savePage();
@@ -41,23 +41,24 @@ public class Page implements Serializable {
 
     /**
      * Updates a row in a table by replacing the values of the old row with those of the new row.
+     *
      * @param intRowIndex The index of the row to update.
-     * @param htblNewRow A Hashtable containing the new values for the row.
+     * @param htblNewRow  A Hashtable containing the new values for the row.
      */
-    public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
+    public void updateRow(int intRowIndex, Hashtable<String, Object> htblNewRow) {
         // Retrieve the old row
-        Hashtable<String,Object> htblOldRow = _rows.get(intRowIndex);
+        Hashtable<String, Object> htblOldRow = _rows.get(intRowIndex);
         Vector<String> keys = new Vector<String>();
 
         // Iterate through each key-value pair in htblOldRow
         htblOldRow.forEach((key, value) -> {
             // If htblNewRow contains the same key, replace the value of that key in htblOldRow with the value of that key in htblNewRow
-            if(htblNewRow.containsKey(key)){
+            if (htblNewRow.containsKey(key)) {
                 keys.add(key);
             }
         });
 
-        for(int i = 0; i < keys.size(); i++){
+        for (int i = 0; i < keys.size(); i++) {
             htblOldRow.replace(keys.get(i), htblNewRow.get(keys.get(i)));
         }
 
@@ -65,7 +66,8 @@ public class Page implements Serializable {
         savePage();
     }
 
-    public void savePage(){
+    public void savePage() {
+        deletePage();
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(file);
@@ -79,7 +81,7 @@ public class Page implements Serializable {
     }
 
     // not sure if correct
-    public void loadPage(){
+    public void loadPage() {
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -99,13 +101,13 @@ public class Page implements Serializable {
         }
     }
 
-    public void unloadPage(){
+    public void unloadPage() {
         _intNumberOfRows = 0;
         _rows = null;
     }
 
 
-    public void deletePage(){
+    public void deletePage() {
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         file.delete();
     }

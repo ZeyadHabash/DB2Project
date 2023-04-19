@@ -5,17 +5,18 @@ import com.opencsv.CSVWriter;
 
 import java.io.*;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.text.SimpleDateFormat;
 
 public class DBApp {
 
     public static int intMaxRows;
+    private final String strDataFolderPath = "src/main/resources/data";
+    private final String dateFormat = "yyyy-MM-dd";
     private Vector<Table> tables;
     private File metadataFile;
 
-    private String strDataFolderPath = "src/main/resources/data";
 
     public static void main(String[] args) throws DBAppException, IOException {
         DBApp dbApp = new DBApp();
@@ -147,11 +148,7 @@ public class DBApp {
     // for data in the column. Key is the name of the column
     //
     //create min and max hashtables in main before create table
-    public void createTable(String strTableName,
-                            String strClusteringKeyColumn,
-                            Hashtable<String, String> htblColNameType,
-                            Hashtable<String, String> htblColNameMin,
-                            Hashtable<String, String> htblColNameMax) throws DBAppException, IOException {
+    public void createTable(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax) throws DBAppException, IOException {
 
         //min/max values based on what?
         //add constraint to config file?
@@ -172,8 +169,7 @@ public class DBApp {
 
         // verify that table name is unique
         for (Table table : tables) {
-            if (table.get_strTableName().equals(strTableName))
-                throw new DBAppException("Table name already exists");
+            if (table.get_strTableName().equals(strTableName)) throw new DBAppException("Table name already exists");
         }
 
         // verify datatype of all hashtables
@@ -206,7 +202,7 @@ public class DBApp {
         br.close();
 
         // write to metadata file
-        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true),CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER,CSVWriter.DEFAULT_LINE_END); // open csv file
+        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END); // open csv file
         entrySet = htblColNameType.entrySet(); // what is ht???
         for (Entry<String, String> entry : entrySet) {
             String columnName = entry.getKey(); // get column name
@@ -218,8 +214,7 @@ public class DBApp {
             writer.writeNext(csvEntry); // write csv entry to csv file
         }
         writer.close(); // close csv file
-        Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin,
-                htblColNameMax, strDataFolderPath + "/"); // not sure about the path
+        Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin, htblColNameMax, strDataFolderPath + "/"); // not sure about the path
 
         tables.add(table); // add table to tables vector
         table.unloadTable(); // unload table from memory
@@ -240,8 +235,7 @@ public class DBApp {
 
     // following method inserts one row only.
     // htblColNameValue must include a value for the primary key
-    public void insertIntoTable(String strTableName,
-                                Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
+    public void insertIntoTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, insert the record
@@ -270,9 +264,7 @@ public class DBApp {
     // htblColNameValue holds the key and new value
     // htblColNameValue will not include clustering key as column name
     // strClusteringKeyValue is the value to look for to find the row to update.
-    public void updateTable(String strTableName,
-                            String strClusteringKeyValue,
-                            Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
+    public void updateTable(String strTableName, String strClusteringKeyValue, Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, update the record
@@ -295,15 +287,14 @@ public class DBApp {
 
         // update the row
         tableToUpdate.updateRow(index, htblColNameValue);
-
+        tableToUpdate.unloadTable(); // unload the table
     }
 
     // following method could be used to delete one or more rows.
     // htblColNameValue holds the key and value. This will be used in search
     // to identify which rows/tuples to delete.
     // htblColNameValue entries are ANDed together
-    public void deleteFromTable(String strTableName,
-                                Hashtable<String, Object> htblColNameValue) throws DBAppException {
+    public void deleteFromTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, delete the record
@@ -348,10 +339,10 @@ public class DBApp {
                 }
             }
         }
+        tableToDeleteFrom.unloadTable(); // unload the table
     }
 
-    public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
-                                    String[] strarrOperators) throws DBAppException {
+    public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, select the records
@@ -376,7 +367,7 @@ public class DBApp {
         throw new DBAppException("Table not found");
     }
 
-    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException{
+    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException {
         // verify that the input row violates no constraints
         Set<Entry<String, Object>> entrySet = htblRow.entrySet();
         BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
@@ -385,9 +376,9 @@ public class DBApp {
             Object columnValue = entry.getValue();
             String columnType = table.get_htblColNameType().get(columnName);
 
-            // check if column exists
-            if (columnType == null) {
-                throw new DBAppException("Column not found");
+            // check if primary key exists
+            if (columnType == null && columnName.equals(table.get_strClusteringKeyColumn())) {
+                throw new DBAppException("Primary key not found");
             }
 
             // check if data type matches within the row
@@ -447,13 +438,12 @@ public class DBApp {
             } else if (columnValue instanceof Date) {
                 Date value = (Date) columnValue;
                 try {
-                    Date min = new SimpleDateFormat("yyyy-MM-dd").parse(table.get_htblColNameMin().get(columnName));
-                    Date max = new SimpleDateFormat("yyyy-MM-dd").parse(table.get_htblColNameMax().get(columnName));
-
+                    Date min = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMin().get(columnName));
+                    Date max = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMax().get(columnName));
                     if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
                         throw new DBAppException("Value out of range");
                     }
-                }catch (ParseException e) {
+                } catch (ParseException e) {
                     throw new DBAppException("Date format is incorrect");
                 }
             }
@@ -491,6 +481,7 @@ public class DBApp {
         // Call the recursive helper method
         return binarySearchHelper(tableToSearchIn, 0, tableToSearchIn.get_intNumberOfRows() - 1, strClusteringKeyValue);
     }
+
     private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Object strClusteringKeyValue) throws DBAppException {
         // Calculate the middle index of the table
         int mid = (intMinIndex + intMaxIndex) / 2;
@@ -501,33 +492,32 @@ public class DBApp {
             return -1; // Return -1 to indicate that the key value was not found
 
         // Check if the clustering key value at the middle index matches the target value
-        if (midClusteringKey.equals(strClusteringKeyValue))
-            return mid; // Return the middle index as the result
+        if (midClusteringKey.equals(strClusteringKeyValue)) return mid; // Return the middle index as the result
             // Check if the clustering key value at the middle index is greater than the target value
         else if (((Comparable) midClusteringKey).compareTo(strClusteringKeyValue) > 0)
             return binarySearchHelper(tableToSearchIn, intMinIndex, mid - 1, strClusteringKeyValue); // Recursively search in the left half of the table
         else
             return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
     }
-    
+
     private Object castValue(String type, String value) throws DBAppException {
         if (type.equals("java.lang.Integer")) {
-            try{
+            try {
                 return Integer.parseInt(value);
-            }catch(NumberFormatException e){
+            } catch (NumberFormatException e) {
                 throw new DBAppException("Invalid integer value");
             }
         } else if (type.equals("java.lang.Double")) {
             try {
                 return Double.parseDouble(value);
-            }catch(NumberFormatException e){
+            } catch (NumberFormatException e) {
                 throw new DBAppException("Invalid double value");
             }
         } else if (type.equals("java.lang.String")) {
-            return (String) value;
+            return value;
         } else if (type.equals("java.util.Date")) {
             try {
-                return new SimpleDateFormat("yyyy-MM-dd").parse(value);
+                return new SimpleDateFormat(dateFormat).parse(value);
             } catch (ParseException e) {
                 throw new DBAppException("Invalid date format (yyyy-MM-dd)");
             }
