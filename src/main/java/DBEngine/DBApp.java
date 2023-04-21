@@ -18,7 +18,7 @@ public class DBApp {
     private File metadataFile;
 
 
-    public static void main(String[] args) throws DBAppException, IOException {
+    public static void main(String[] args) throws DBAppException {
         DBApp dbApp = new DBApp();
         dbApp.init();
         String strTableName = "Student";
@@ -148,7 +148,9 @@ public class DBApp {
     // for data in the column. Key is the name of the column
     //
     //create min and max hashtables in main before create table
-    public void createTable(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax) throws DBAppException, IOException {
+    public void createTable(String strTableName, String strClusteringKeyColumn,
+                            Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin,
+                            Hashtable<String, String> htblColNameMax) throws DBAppException {
 
         //min/max values based on what?
         //add constraint to config file?
@@ -177,7 +179,8 @@ public class DBApp {
         for (Entry<String, String> entry : entrySet) {
             String columnName = entry.getKey();
             String columnType = entry.getValue();
-            if (!(columnType.equals("java.lang.Integer") || columnType.equals("java.lang.Double") || columnType.equals("java.lang.String") || columnType.equals("java.util.Date"))) {
+            if (!(columnType.equals("java.lang.Integer") || columnType.equals("java.lang.Double") ||
+                    columnType.equals("java.lang.String") || columnType.equals("java.util.Date"))) {
                 throw new DBAppException("Invalid data type");
             } else {
                 if (htblColNameMin.get(columnName) == null) {
@@ -189,35 +192,44 @@ public class DBApp {
             }
         }
 
-        // check if table already exists
-        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
-        String line = br.readLine();
-        while (line != null) { // loop over all lines
-            String[] values = line.split(",");
-            if (values[0].equals(strTableName)) { // check if table name already exists
-                throw new DBAppException("Table already exists"); // if it does, throw exception
+        try {
+            // check if table already exists
+            BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
+            String line = br.readLine();
+            while (line != null) { // loop over all lines
+                String[] values = line.split(",");
+                if (values[0].equals(strTableName)) { // check if table name already exists
+                    throw new DBAppException("Table already exists"); // if it does, throw exception
+                }
+                line = br.readLine();
             }
-            line = br.readLine();
+            br.close();
+        } catch (IOException e) {
+            throw new DBAppException("Error reading metadata file");
         }
-        br.close();
 
-        // write to metadata file
-        CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END); // open csv file
-        entrySet = htblColNameType.entrySet(); // what is ht???
-        for (Entry<String, String> entry : entrySet) {
-            String columnName = entry.getKey(); // get column name
-            String columnType = entry.getValue(); // get column type
-            boolean clusteringKey = columnName.equals(strClusteringKeyColumn); // check if column is clustering key
-            String min = htblColNameMin.get(columnName); // get min value
-            String max = htblColNameMax.get(columnName); // get max value
-            String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
-            writer.writeNext(csvEntry); // write csv entry to csv file
+        try {
+            // write to metadata file
+            CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true), CSVWriter.DEFAULT_SEPARATOR,
+                    CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END); // open csv file
+            entrySet = htblColNameType.entrySet(); // what is ht???
+            for (Entry<String, String> entry : entrySet) {
+                String columnName = entry.getKey(); // get column name
+                String columnType = entry.getValue(); // get column type
+                boolean clusteringKey = columnName.equals(strClusteringKeyColumn); // check if column is clustering key
+                String min = htblColNameMin.get(columnName); // get min value
+                String max = htblColNameMax.get(columnName); // get max value
+                String[] csvEntry = {strTableName, columnName, columnType, Boolean.toString(clusteringKey), "null", "null", min, max}; // create csv entry
+                writer.writeNext(csvEntry); // write csv entry to csv file
+            }
+            writer.close(); // close csv file
+            Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin, htblColNameMax, strDataFolderPath + "/"); // not sure about the path
+
+            tables.add(table); // add table to tables vector
+            table.unloadTable(); // unload table from memory
+        } catch (IOException e) {
+            throw new DBAppException("Error writing to metadata file");
         }
-        writer.close(); // close csv file
-        Table table = new Table(strTableName, strClusteringKeyColumn, htblColNameType, htblColNameMin, htblColNameMax, strDataFolderPath + "/"); // not sure about the path
-
-        tables.add(table); // add table to tables vector
-        table.unloadTable(); // unload table from memory
     }
 
     // following method creates an octree
@@ -235,7 +247,7 @@ public class DBApp {
 
     // following method inserts one row only.
     // htblColNameValue must include a value for the primary key
-    public void insertIntoTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
+    public void insertIntoTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, insert the record
@@ -264,7 +276,8 @@ public class DBApp {
     // htblColNameValue holds the key and new value
     // htblColNameValue will not include clustering key as column name
     // strClusteringKeyValue is the value to look for to find the row to update.
-    public void updateTable(String strTableName, String strClusteringKeyValue, Hashtable<String, Object> htblColNameValue) throws DBAppException, IOException {
+    public void updateTable(String strTableName, String strClusteringKeyValue,
+                            Hashtable<String, Object> htblColNameValue) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, update the record
@@ -367,88 +380,92 @@ public class DBApp {
         throw new DBAppException("Table not found");
     }
 
-    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException, IOException {
-        // verify that the input row violates no constraints
-        Set<Entry<String, Object>> entrySet = htblRow.entrySet();
-        BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
-        for (Entry<String, Object> entry : entrySet) {
-            String columnName = entry.getKey();
-            Object columnValue = entry.getValue();
-            String columnType = table.get_htblColNameType().get(columnName);
+    private void verifyRow(Table table, Hashtable<String, Object> htblRow) throws DBAppException {
+        try {
+            // verify that the input row violates no constraints
+            Set<Entry<String, Object>> entrySet = htblRow.entrySet();
+            BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
+            for (Entry<String, Object> entry : entrySet) {
+                String columnName = entry.getKey();
+                Object columnValue = entry.getValue();
+                String columnType = table.get_htblColNameType().get(columnName);
 
-            // check if primary key exists
-            if (columnType == null && columnName.equals(table.get_strClusteringKeyColumn())) {
-                throw new DBAppException("Primary key not found");
-            }
+                // check if primary key exists
+                if (columnType == null) {
+                    throw new DBAppException("Column not found");
+                }
 
-            // check if data type matches within the row
-            if (columnType.equals("java.lang.Integer")) {
-                if (!(columnValue instanceof Integer)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.lang.Double")) {
-                if (!(columnValue instanceof Double)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.lang.String")) {
-                if (!(columnValue instanceof String)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            } else if (columnType.equals("java.util.Date")) {
-                if (!(columnValue instanceof Date)) {
-                    throw new DBAppException("Data type mismatch");
-                }
-            }
-
-            // check if data types match the table's data types
-            String line = br.readLine();
-            while (line != null) { // loop over all lines
-                String[] values = line.split(","); // split line into values
-                if (values[0].equals(table.get_strTableName()) && values[1].equals(columnName)) { // check if table name and column name match
-                    if (!values[2].equals(columnType)) { // check if data types match
-                        throw new DBAppException("Data type mismatch"); // if they don't, throw exception
+                // check if data type matches within the row
+                if (columnType.equals("java.lang.Integer")) {
+                    if (!(columnValue instanceof Integer)) {
+                        throw new DBAppException("Data type mismatch");
                     }
-                    break; // if column name and table name match, break out of loop
+                } else if (columnType.equals("java.lang.Double")) {
+                    if (!(columnValue instanceof Double)) {
+                        throw new DBAppException("Data type mismatch");
+                    }
+                } else if (columnType.equals("java.lang.String")) {
+                    if (!(columnValue instanceof String)) {
+                        throw new DBAppException("Data type mismatch");
+                    }
+                } else if (columnType.equals("java.util.Date")) {
+                    if (!(columnValue instanceof Date)) {
+                        throw new DBAppException("Data type mismatch");
+                    }
                 }
-                line = br.readLine(); // read next line if column name and table name don't match
-            }
 
-            // check if all columns are within min and max
-            if (columnValue instanceof Integer) {
-                int value = (int) columnValue;
-                int min = Integer.parseInt(table.get_htblColNameMin().get(columnName));
-                int max = Integer.parseInt(table.get_htblColNameMax().get(columnName));
-                if (value < min || value > max) {
-                    throw new DBAppException("Value out of range");
+                // check if data types match the table's data types
+                String line = br.readLine();
+                while (line != null) { // loop over all lines
+                    String[] values = line.split(","); // split line into values
+                    if (values[0].equals(table.get_strTableName()) && values[1].equals(columnName)) { // check if table name and column name match
+                        if (!values[2].equals(columnType)) { // check if data types match
+                            throw new DBAppException("Data type mismatch"); // if they don't, throw exception
+                        }
+                        break; // if column name and table name match, break out of loop
+                    }
+                    line = br.readLine(); // read next line if column name and table name don't match
                 }
-            } else if (columnValue instanceof Double) {
-                double value = (double) columnValue;
-                double min = Double.parseDouble(table.get_htblColNameMin().get(columnName));
-                double max = Double.parseDouble(table.get_htblColNameMax().get(columnName));
-                if (value < min || value > max) {
-                    throw new DBAppException("Value out of range");
-                }
-            } else if (columnValue instanceof String) {
-                String value = (String) columnValue;
-                String min = table.get_htblColNameMin().get(columnName);
-                String max = table.get_htblColNameMax().get(columnName);
-                if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
-                    throw new DBAppException("Value out of range");
-                }
-            } else if (columnValue instanceof Date) {
-                Date value = (Date) columnValue;
-                try {
-                    Date min = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMin().get(columnName));
-                    Date max = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMax().get(columnName));
+
+                // check if all columns are within min and max
+                if (columnValue instanceof Integer) {
+                    int value = (int) columnValue;
+                    int min = Integer.parseInt(table.get_htblColNameMin().get(columnName));
+                    int max = Integer.parseInt(table.get_htblColNameMax().get(columnName));
+                    if (value < min || value > max) {
+                        throw new DBAppException("Value out of range");
+                    }
+                } else if (columnValue instanceof Double) {
+                    double value = (double) columnValue;
+                    double min = Double.parseDouble(table.get_htblColNameMin().get(columnName));
+                    double max = Double.parseDouble(table.get_htblColNameMax().get(columnName));
+                    if (value < min || value > max) {
+                        throw new DBAppException("Value out of range");
+                    }
+                } else if (columnValue instanceof String) {
+                    String value = (String) columnValue;
+                    String min = table.get_htblColNameMin().get(columnName);
+                    String max = table.get_htblColNameMax().get(columnName);
                     if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
                         throw new DBAppException("Value out of range");
                     }
-                } catch (ParseException e) {
-                    throw new DBAppException("Date format is incorrect");
+                } else if (columnValue instanceof Date) {
+                    Date value = (Date) columnValue;
+                    try {
+                        Date min = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMin().get(columnName));
+                        Date max = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMax().get(columnName));
+                        if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+                            throw new DBAppException("Value out of range");
+                        }
+                    } catch (ParseException e) {
+                        throw new DBAppException("Date format is incorrect");
+                    }
                 }
             }
+            br.close();
+        } catch (IOException e) {
+            throw new DBAppException("Error reading metadata file");
         }
-        br.close();
     }
 
 

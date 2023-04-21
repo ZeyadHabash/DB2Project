@@ -6,18 +6,18 @@ import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
 
-
 public class Table implements Serializable {
-    private transient String _strTableName;
+    private String _strTableName;
     private String _strClusteringKeyColumn;
-    private transient String _strPath;
+    private String _strPath;
     private Hashtable<String, String> _htblColNameType;
     private Hashtable<String, String> _htblColNameMin;
     private Hashtable<String, String> _htblColNameMax;
     private Vector<Page> _pages;
     private int _intNumberOfRows;
 
-    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
+    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType,
+                 Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
         _strClusteringKeyColumn = strClusteringKeyColumn;
         _htblColNameType = htblColNameType;
@@ -175,7 +175,6 @@ public class Table implements Serializable {
 
     // should we have save table and load table methods?
     public void saveTable() {
-        //deleteTableFile();
         File file = new File(_strPath + _strTableName + ".ser");
         try {
             FileOutputStream fos = new FileOutputStream(file);

@@ -5,10 +5,10 @@ import java.util.Hashtable;
 import java.util.Vector;
 
 public class Page implements Serializable {
-    private transient int _intPageID;
+    private int _intPageID;
     private int _intNumberOfRows;
     private Vector<Hashtable<String, Object>> _rows;
-    private transient String _strPath;
+    private String _strPath;
     private String _strTableName;
 
     public Page(int intPageID, String strPath, String strTableName) {
@@ -89,11 +89,8 @@ public class Page implements Serializable {
             Page page = (Page) ois.readObject();
             ois.close();
             fis.close();
-            _intPageID = page.get_intPageID();
             _intNumberOfRows = page.get_intNumberOfRows();
             _rows = page.get_rows();
-            _strPath = page.get_strPath();
-            _strTableName = page.get_strTableName();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
