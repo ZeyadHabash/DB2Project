@@ -67,7 +67,7 @@ public class Page implements Serializable {
     }
 
     public void savePage() {
-        deletePage();
+        //deletePage();
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(file);

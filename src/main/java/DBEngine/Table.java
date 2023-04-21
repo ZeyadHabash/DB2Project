@@ -175,7 +175,7 @@ public class Table implements Serializable {
 
     // should we have save table and load table methods?
     public void saveTable() {
-        deleteTableFile();
+        //deleteTableFile();
         File file = new File(_strPath + _strTableName + ".ser");
         try {
             FileOutputStream fos = new FileOutputStream(file);
