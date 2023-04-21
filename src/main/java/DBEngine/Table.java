@@ -259,6 +259,7 @@ public class Table implements Serializable {
 
 
 
+
     public String get_strTableName() {
         return _strTableName;
     }

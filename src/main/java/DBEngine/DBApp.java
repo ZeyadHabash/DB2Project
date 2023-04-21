@@ -6,6 +6,9 @@ import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvValidationException;
 
 import java.io.*;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -171,6 +174,7 @@ public class DBApp {
         BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
         String line = br.readLine();
         while (line != null) { // loop over all lines
+            line= line.replaceAll("\"", "");
             String[] values = line.split(",");
             if (values[0].equals(strTableName)) { // check if table name already exists
                 throw new DBAppException("Table already exists"); // if it does, throw exception
@@ -342,6 +346,8 @@ public class DBApp {
 
 
     }
+
+
 
     // following method updates one row only
     // htblColNameValue holds the key and new value

@@ -45,7 +45,7 @@ public class Page implements Serializable {
     }
 
     public void savePage(){
-        File file = new File(_strPath + _strTableName + _intPageID + ".class");
+      //  File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(_strPath + _strTableName + _intPageID + ".class");
             ObjectOutputStream oos = new ObjectOutputStream(fos);
@@ -57,6 +57,7 @@ public class Page implements Serializable {
             e.printStackTrace();
         }
     }
+
 
     // not sure if correct
     public void loadPage(){
@@ -80,6 +81,13 @@ public class Page implements Serializable {
         }
     }
 
+    /*public void unloadPage(){
+      // _intPageID = -1;
+        _intNumberOfRows = 0;
+        _rows = null;
+        _strPath = null;
+        _strTableName = null;
+    }*/
 
 
     public void deletePage(){
