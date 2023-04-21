@@ -263,6 +263,7 @@ public class DBApp {
 
         Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
         tableToInsertInto.loadTable(); // load the table into memory
+        wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call incase not all attributes are included in ht
 
         // verify that the input row violates no constraints
         verifyRow(tableToInsertInto, htblColNameValue);
@@ -333,7 +334,11 @@ public class DBApp {
             // if the clustering key is in the hashtable, delete only one row
             Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
             int index = binarySearch(tableToDeleteFrom, clusteringKeyValue); // find the index of the row to delete using binary search
+            if (index==-1)
+                throw new DBAppException("No such row exists");
             tableToDeleteFrom.deleteRow(index); // delete the row at that index
+
+
         } else {
             // if the clustering key is not in the hashtable, delete all rows that match the other conditions
             // currently it goes through the rows linearly
@@ -414,6 +419,7 @@ public class DBApp {
                     }
                 }
 
+
                 // check if data types match the table's data types
                 String line = br.readLine();
                 while (line != null) { // loop over all lines
@@ -468,6 +474,28 @@ public class DBApp {
         }
     }
 
+    private static void wrapNull(Hashtable<String,Object> htblColNameValue, Table table) throws DBAppException {
+        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
+        int colsize= table.get_htblColNameType().size();  // are we sure never returns null?
+        if(htblColNameValue.size()==colsize) //all columns are instantiated
+        {
+            return;
+        }
+
+            for (Entry<String, String> entry : entrySet) {
+                String columnNameOriginal = entry.getKey(); //column name from table
+                if (htblColNameValue.containsKey(columnNameOriginal)) //if the column exists in the hashtable
+                {
+                    continue;
+                }
+                else
+                {
+                    String columnType = entry.getValue();
+                    htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
+                }
+
+                     }
+            }
 
     private void binarySearchAndInsert(Table tableToInsertTo, Hashtable<String, Object> htblColNameValue) throws DBAppException {
         int left = 0; // Initialize left index to 0

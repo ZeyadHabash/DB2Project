@@ -16,8 +16,7 @@ public class Table implements Serializable {
     private Vector<Page> _pages;
     private int _intNumberOfRows;
 
-    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType,
-                 Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
+    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
         _strClusteringKeyColumn = strClusteringKeyColumn;
         _htblColNameType = htblColNameType;
@@ -84,7 +83,7 @@ public class Table implements Serializable {
         saveTable();
     }
 
-    public void updateRow(int intRowIndex, Hashtable<String, Object> htblNewRow) {
+    public void updateRow(int intRowIndex, Hashtable<String, Object> htblNewRow) { //make null object
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
         Page page = _pages.get(intPageID);
