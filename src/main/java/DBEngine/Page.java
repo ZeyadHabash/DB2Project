@@ -47,9 +47,10 @@ public class Page implements Serializable {
     public void savePage(){
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
-            FileOutputStream fos = new FileOutputStream(file);
+            FileOutputStream fos = new FileOutputStream(_strPath + _strTableName + _intPageID + ".class");
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(this);
+            oos.flush();
             oos.close();
             fos.close();
         } catch (IOException e) {
@@ -61,16 +62,17 @@ public class Page implements Serializable {
     public void loadPage(){
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
-            FileInputStream fis = new FileInputStream(file);
+            FileInputStream fis = new FileInputStream(_strPath + _strTableName + _intPageID +".class");
             ObjectInputStream ois = new ObjectInputStream(fis);
             Page page = (Page) ois.readObject();
-            ois.close();
-            fis.close();
             _intPageID = page.get_intPageID();
             _intNumberOfRows = page.get_intNumberOfRows();
             _rows = page.get_rows();
             _strPath = page.get_strPath();
             _strTableName = page.get_strTableName();
+
+            ois.close();
+            fis.close();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {

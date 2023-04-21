@@ -1,5 +1,7 @@
 package DBEngine;
 
+import Exceptions.DBAppException;
+
 import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -27,10 +29,12 @@ public class Table implements Serializable {
         saveTable();
     }
 
+
     public Table(String strTableName, String strPath) {
         _strTableName = strTableName;
         _strPath = strPath;
     }
+
 
     // TODO : sort rows after adding
     // TODO : function should take clustering key value as a parameter and insert the row in the correct place
@@ -39,17 +43,48 @@ public class Table implements Serializable {
             Page page = new Page(0, _strPath, _strTableName);
             page.addRow(htblNewRow);
             _pages.add(page);
-        }else {
-            int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
-            int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
-            Page page = _pages.get(intPageID); // get the page
-            page.loadPage(); // load the page from the disk
-            page.addRow(htblNewRow, intRowID); // add the row to the page
-            if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
-                splitPage(page, intPageID);
+
+
+            _intNumberOfRows++;
+             saveTable();
+              page=null;
         }
-        _intNumberOfRows++;
-        saveTable();
+        else{
+
+
+
+            Page page = _pages.get(intPageID); // get the page
+            //extra page will be needed
+            if(intPageID==_pages.size()) {
+                page = new Page(intPageID, _strPath, _strTableName);
+                page.addRow(htblNewRow);
+                _pages.add(page);
+
+            }
+            else
+            {// insert in existing pages
+                int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
+                page.loadPage(); // load the page from the disk
+                page.addRow(htblNewRow, intRowID); // add the row to the page
+                if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
+                    splitPage(page, intPageID);
+
+            }
+            _intNumberOfRows++;
+             saveTable();
+              page=null;
+        }
+     //   _intNumberOfRows++;
+      //  saveTable();
+      //  page=null;
+
+        System.out.println(_pages.get(0).get_rows().get(0));
+       // unloadAllPages();
+       // System.out.println(_pages.get(0).get_rows().get(0));
+        //System.out.println(_pages.size());
+        _pages.get(0).loadPage();
+        System.out.println(_pages.get(0).get_rows().get(0));
+
     }
 
 
@@ -65,7 +100,7 @@ public class Table implements Serializable {
         if(page.get_intNumberOfRows() == 0) { // delete the page if it is empty
             _pages.remove(intPageID);
             page.deletePage();
-        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full and it is not the last page, merge it with the next page
+        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full, and it is not the last page, merge it with the next page
             Page nextPage = _pages.get(intPageID + 1);
             nextPage.loadPage(); // load next page from disk
             page.addRow(nextPage.get_rows().get(0));
@@ -76,23 +111,26 @@ public class Table implements Serializable {
             }
         }
         _intNumberOfRows--;
+       // unloadAllPages();
         saveTable();
     }
 
-    //TODO : sort rows after updating
     public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
         Page page = _pages.get(intPageID);
         page.loadPage();
         page.updateRow(intRowID, htblNewRow);
+        //unloadAllPages();
         saveTable();
     }
+
 
     public void splitPage(Page currPage, int intCurrPageID){
         int lastRowIndex = currPage.get_rows().size()-1;
         Hashtable<String,Object> lastRow = currPage.get_rows().get(lastRowIndex);
 
+        // fix path name?
         if(intCurrPageID == _pages.size() - 1){
             Page newPage = new Page(_pages.size(), _strPath, _strTableName);
             newPage.addRow(lastRow);
@@ -107,6 +145,7 @@ public class Table implements Serializable {
         }
         currPage.deleteRow(lastRowIndex);
 
+       // unloadAllPages();
         saveTable();
     }
 
@@ -153,7 +192,8 @@ public class Table implements Serializable {
         int intRowID = intRowIndex % DBApp.intMaxRows;
         Page page = _pages.get(intPageID);
         page.loadPage();
-        return page.get_rows().get(intRowID);
+       // page.get_rows();
+        return (page.get_rows()).get(intRowID);
     }
     public Object getClusteringKeyFromIndex(int intRowIndex){
         return  getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
@@ -162,11 +202,14 @@ public class Table implements Serializable {
 
     // should we have save table and load table methods?
     public void saveTable(){
+        //path name???????
         File file = new File(_strPath + _strTableName + ".class");
+       // File file = new File("data/Student.class");
         try {
             FileOutputStream fos = new FileOutputStream(file);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(this);
+            oos.flush();
             oos.close();
             fos.close();
         } catch (IOException e) {
@@ -176,24 +219,38 @@ public class Table implements Serializable {
 
     public void loadTable(){
         File file = new File(_strPath + _strTableName + ".class");
+       // File file = new File("data/Student.class");
         try {
             FileInputStream fis = new FileInputStream(file);
             ObjectInputStream ois = new ObjectInputStream(fis);
+           // Object o= ois.readObject();
             Table table = (Table) ois.readObject();
             ois.close();
             fis.close();
-            _strTableName = table.get_strTableName();
             _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
             _htblColNameType = table.get_htblColNameType();
             _htblColNameMin = table.get_htblColNameMin();
             _htblColNameMax = table.get_htblColNameMax();
-            _strPath = table.get_strPath();
             _pages = table.get_pages();
             _intNumberOfRows = table.get_intNumberOfRows();
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            System.out.println("PROBLEM IS HERE IN LOAD TABLE");
+        }
+    }
+
+    public void unloadTable(){
+        _strClusteringKeyColumn = null;
+        _htblColNameType = null;
+        _htblColNameMin = null;
+        _htblColNameMax = null;
+        _pages = null;
+        _intNumberOfRows = 0;
+    }
+
+    /*public void unloadAllPages(){
+        for(Page page : _pages){
+        page.unloadPage();
         }
     }
 
@@ -217,6 +274,7 @@ public class Table implements Serializable {
     public Hashtable<String, String> get_htblColNameType() {
         return _htblColNameType;
     }
+
     public void set_htblColNameType(Hashtable<String, String> _htblColNameType) {
         this._htblColNameType = _htblColNameType;
     }
