@@ -19,65 +19,7 @@ public class DBApp {
 
 
     public static void main(String[] args) throws DBAppException {
-        DBApp dbApp = new DBApp();
-        dbApp.init();
-        String strTableName = "Student";
 
-        Hashtable<String, String> htblColNameType = new Hashtable<>();
-        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
-        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
-
-        htblColNameType.put("id", "java.lang.Integer");
-        htblColNameMin.put("id", "0");
-        htblColNameMax.put("id", "1000000000");
-
-        htblColNameType.put("name", "java.lang.String");
-        htblColNameMin.put("name", "A");
-        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
-
-        htblColNameType.put("gpa", "java.lang.Double");
-        htblColNameMin.put("gpa", "0.0");
-        htblColNameMax.put("gpa", "4.0");
-
-        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
-
-
-//        Hashtable htblColNameValue = new Hashtable();
-//        htblColNameValue.put("id", new Integer(28102));
-//        htblColNameValue.put("name", new String("Ahmed Noor"));
-//        htblColNameValue.put("gpa", new Double(0.95));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(19282));
-//        htblColNameValue.put("name", new String("Ahmed Noor"));
-//        htblColNameValue.put("gpa", new Double(0.95));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(21903));
-//        htblColNameValue.put("name", new String("Dalia Noor"));
-//        htblColNameValue.put("gpa", new Double(1.25));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(1));
-//        htblColNameValue.put("name", new String("tester"));
-//        htblColNameValue.put("gpa", new Double(2.5));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-
-//        htblColNameValue.clear();
-//        htblColNameValue.put("name", "Ahmed Noor");
-//        dbApp.deleteFromTable(strTableName, htblColNameValue);
-
-//        htblColNameValue.clear();
-//        htblColNameValue.put("gpa", 3.243);
-//        htblColNameValue.put("name", "testing update");
-//        dbApp.updateTable(strTableName, String.valueOf(21903), htblColNameValue);
-
-
-//        System.out.println("Done");
-//        dbApp.getTableFromName(strTableName).loadTable();
-//        System.out.println(dbApp.getTableFromName(strTableName).toString());
-//        dbApp.getTableFromName(strTableName).unloadTable();
     }
 
     public void init() throws DBAppException {
@@ -128,7 +70,6 @@ public class DBApp {
                 line = br.readLine();
             }
             br.close();
-            tables.forEach(table -> System.out.println(table.get_strTableName())); // TODO: remove this
         } catch (Exception e) {
             throw new DBAppException("Error reading metadata file");
         }
