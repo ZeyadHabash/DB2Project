@@ -53,8 +53,9 @@ public class Table implements Serializable {
             page = new Page(_pages.size(), _strPath, _strTableName);
             page.addRow(htblNewRow);
             _pages.add(page);
+            page.unloadPage();
         } else {
-            int intRowID = page.binarySearchForInsertion(objClusteringKeyValue); // get the row id to insert the row in
+            int intRowID = page.binarySearchForInsertion(objClusteringKeyValue, _strClusteringKeyColumn); // get the row id to insert the row in
             page.addRow(htblNewRow, intRowID); // add the row to the page
             if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
                 splitPage(page, page.get_intPageID());
@@ -62,7 +63,7 @@ public class Table implements Serializable {
             page.unloadPage();
         }
         _intNumberOfRows++;
-        unloadAllPages();
+//        unloadAllPages();
     }
 
 
@@ -76,14 +77,15 @@ public class Table implements Serializable {
         page.unloadPage();
     }
 
-    public void updateRow(Hashtable<String, Object> htblNewRow) throws DBAppException {
-        Object objClusteringKeyValue = htblNewRow.get(_strClusteringKeyColumn);
+    public void updateRow(Hashtable<String, Object> htblNewRow, Object objClusteringKeyValue) throws DBAppException {
         Page page = getPageFromClusteringKey(objClusteringKeyValue);
         int intRowID = getRowIDFromClusteringKey(page, objClusteringKeyValue);
-        if(page == null || intRowID == -1)
-            throw new DBAppException("Row not found");
+        if (page == null || intRowID == -1) // if page or row not found,
+            return; // don't do anything
+//          throw new DBAppException("Row not found");
         page.updateRow(intRowID, htblNewRow);
-        unloadAllPages();
+        page.unloadPage();
+//        unloadAllPages();
     }
 
     public void splitPage(Page currPage, int intCurrPageID) { // splits page if it is full
@@ -94,6 +96,7 @@ public class Table implements Serializable {
             Page newPage = new Page(_pages.size(), _strPath, _strTableName); // create a new page
             newPage.addRow(lastRow);
             _pages.add(newPage);
+            newPage.unloadPage();
         } else { // if the page is not the last page in the table
             int intNextPageID = intCurrPageID + 1; // get the id of the next page
             Page nextPage = _pages.get(intNextPageID); // get the next page
@@ -101,10 +104,10 @@ public class Table implements Serializable {
             nextPage.addRow(lastRow, 0); // add the last row to the next page as the first row
             if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows) // if the next page is full, split it
                 splitPage(nextPage, intNextPageID);
+            nextPage.unloadPage();
         }
         currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
-
-        unloadAllPages();
+//        unloadAllPages();
     }
 
     // FIXME: this method is not working anymore due to changing the way deletion works
@@ -260,11 +263,11 @@ public class Table implements Serializable {
         file.delete();
     }
 
-    public void unloadAllPages() {
-        for (Page page : _pages) {
-            page.unloadPage();
-        }
-    }
+//    public void unloadAllPages() {
+//        for (Page page : _pages) {
+//            page.unloadPage();
+//        }
+//    }
 
     @Override
     public String toString() {
@@ -272,8 +275,9 @@ public class Table implements Serializable {
         for (Page page : _pages) {
             page.loadPage();
             pages += page + "\n";
+            page.unloadPage();
         }
-        unloadAllPages();
+//        unloadAllPages();
         return pages;
 
     }

@@ -91,14 +91,14 @@ public class Page implements Serializable {
         return -1; // if the primary key is not found return -1
     }
 
-    public int binarySearchForInsertion(Object objClusteringKeyValue) throws DBAppException {
+    public int binarySearchForInsertion(Object objClusteringKeyValue, String strClusteringKeyColumn) throws DBAppException {
         int low = 0;
         int high = _rows.size() - 1;
         int mid = (low + high) / 2;
         while (low <= high) {
-            if (objClusteringKeyValue.equals(_rows.get(mid).get("id"))) { // if the primary key is found throw an exception
+            if (objClusteringKeyValue.equals(_rows.get(mid).get(strClusteringKeyColumn))) { // if the primary key is found throw an exception
                 throw new DBAppException("Primary key is duplicated");
-            } else if (objClusteringKeyValue.hashCode() < _rows.get(mid).get("id").hashCode()) { // if the primary key is less than the mid key, search in the left half
+            } else if (objClusteringKeyValue.hashCode() < _rows.get(mid).get(strClusteringKeyColumn).hashCode()) { // if the primary key is less than the mid key, search in the left half
                 high = mid - 1;
             } else { // if the primary key is greater than the mid key, search in the right half
                 low = mid + 1;

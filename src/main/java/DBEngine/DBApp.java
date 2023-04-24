@@ -308,7 +308,7 @@ public class DBApp {
         Object adjustedClusteringKeyValue = castValue(clusteringKeyDataType, strClusteringKeyValue);
 
         // update the row
-        tableToUpdate.updateRow(htblColNameValue);
+        tableToUpdate.updateRow(htblColNameValue, adjustedClusteringKeyValue);
         tableToUpdate.unloadTable(); // unload the table
     }
 
