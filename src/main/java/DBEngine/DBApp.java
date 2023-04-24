@@ -296,9 +296,6 @@ public class DBApp {
         String clusteringKeyDataType = tableToUpdate.get_htblColNameType().get(tableToUpdate.get_strClusteringKeyColumn());
         Object adjustedClusteringKeyValue = castValue(clusteringKeyDataType, strClusteringKeyValue);
 
-        // get the index of the row to update
-        int index = binarySearch(tableToUpdate, adjustedClusteringKeyValue);
-
         // update the row
         tableToUpdate.updateRow(index, htblColNameValue);
         tableToUpdate.unloadTable(); // unload the table
