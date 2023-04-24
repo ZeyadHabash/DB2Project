@@ -239,8 +239,6 @@ public class Table implements Serializable {
             _htblColNameMax = table.get_htblColNameMax();
             _pages = table.get_pages();
             _intNumberOfRows = table.get_intNumberOfRows();
-            System.out.println("Table loaded successfully");
-            System.out.println("Number of rows in table: " + _intNumberOfRows);
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -254,8 +252,6 @@ public class Table implements Serializable {
         _htblColNameMax = null;
         _pages = null;
         _intNumberOfRows = 0;
-        System.out.println("Table unloaded ");
-
     }
 
     private void deleteTableFile() {

@@ -80,7 +80,7 @@ public class DBApp {
 //        dbApp.getTableFromName(strTableName).unloadTable();
     }
 
-    public void init() {
+    public void init() throws DBAppException {
         // create data folder if it doesn't exist
         File dataFolder = new File(strDataFolderPath);
         if (!dataFolder.exists()) {
@@ -92,7 +92,7 @@ public class DBApp {
             try {
                 metadataFile.createNewFile();
             } catch (Exception e) {
-                System.out.println("Error creating metadata file");
+                throw new DBAppException("Error creating metadata file");
             }
         }
         // TODO: store min and max values in config file
@@ -130,7 +130,7 @@ public class DBApp {
             br.close();
             tables.forEach(table -> System.out.println(table.get_strTableName())); // TODO: remove this
         } catch (Exception e) {
-            System.out.println("Error reading metadata file");
+            throw new DBAppException("Error reading metadata file");
         }
 
         // get max octree nodes from config file
