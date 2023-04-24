@@ -333,12 +333,11 @@ public class DBApp {
         if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
             // if the clustering key is in the hashtable, delete only one row
             Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
-            int index = binarySearch(tableToDeleteFrom, clusteringKeyValue); // find the index of the row to delete using binary search
-            if (index==-1)
-                throw new DBAppException("No such row exists");
-            tableToDeleteFrom.deleteRow(index); // delete the row at that index
-
-
+            Page page = tableToDeleteFrom.getPageFromClusteringKey(clusteringKeyValue); // get the page that contains the row to delete
+            int intRowID = tableToDeleteFrom.getRowIDFromClusteringKey(page, clusteringKeyValue);// find the index of the row to delete using binary search
+            if (intRowID == -1 || page == null) // if the row/page is not found don't delete
+                return;
+            tableToDeleteFrom.deleteRow(page, intRowID); // delete the row at that index
         } else {
             // if the clustering key is not in the hashtable, delete all rows that match the other conditions
             // currently it goes through the rows linearly

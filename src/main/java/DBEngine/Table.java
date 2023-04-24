@@ -108,7 +108,7 @@ public class Table implements Serializable {
             nextPage.addRow(lastRow, 0);
             if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows) splitPage(nextPage, intNextPageID);
         }
-        currPage.deleteRow(lastRowIndex);
+        currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
 
         unloadAllPages();
         saveTable();
