@@ -7,14 +7,14 @@ import java.util.Hashtable;
 import java.util.Vector;
 
 public class Page implements Serializable {
-    private int _intPageID;
+    private String _strPageID;
     private int _intNumberOfRows;
     private Vector<Hashtable<String, Object>> _rows;
     private String _strPath;
     private String _strTableName;
 
-    public Page(int intPageID, String strPath, String strTableName) {
-        _intPageID = intPageID;
+    public Page(String strPageID, String strPath, String strTableName) {
+        _strPageID = strPageID;
         _intNumberOfRows = 0;
         _rows = new Vector<Hashtable<String, Object>>();
         _strPath = strPath;
