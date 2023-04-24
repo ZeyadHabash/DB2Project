@@ -1,5 +1,7 @@
 package DBEngine;
 
+import Exceptions.DBAppException;
+
 import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -20,21 +22,22 @@ public class Page implements Serializable {
         savePage();
     }
 
-    public void addRow(Hashtable<String, Object> htblNewRow) {
+    // following method adds a row at the end of the page
+    public void addRow(Hashtable<String, Object> htblNewRow){
         _rows.add(htblNewRow);
         _intNumberOfRows++;
         savePage();
     }
 
-    // overridden version of addRow that adds at a specific index instead of at end of page
-    public void addRow(Hashtable<String, Object> htblNewRow, int intRowIndex) {
-        _rows.add(intRowIndex, htblNewRow);
+    // overridden version of addRow that adds at a specific index instead of normal binary search
+    public void addRow(Hashtable<String, Object> htblNewRow, int intRowID) {
+        _rows.add(intRowID, htblNewRow);
         _intNumberOfRows++;
         savePage();
     }
 
-    public void deleteRow(int intRowIndex) {
-        _rows.remove(intRowIndex);
+    public void deleteRow(int intRowID) {
+        _rows.remove(intRowID);
         _intNumberOfRows--;
         savePage();
     }
@@ -42,12 +45,12 @@ public class Page implements Serializable {
     /**
      * Updates a row in a table by replacing the values of the old row with those of the new row.
      *
-     * @param intRowIndex The index of the row to update.
-     * @param htblNewRow  A Hashtable containing the new values for the row.
+     * @param intRowID   The index of the row to update.
+     * @param htblNewRow A Hashtable containing the new values for the row.
      */
-    public void updateRow(int intRowIndex, Hashtable<String, Object> htblNewRow) {
+    public void updateRow(int intRowID, Hashtable<String, Object> htblNewRow) {
         // Retrieve the old row
-        Hashtable<String, Object> htblOldRow = _rows.get(intRowIndex);
+        Hashtable<String, Object> htblOldRow = _rows.get(intRowID);
         Vector<String> keys = new Vector<String>();
 
         // Iterate through each key-value pair in htblOldRow
@@ -64,6 +67,48 @@ public class Page implements Serializable {
 
         // Save the page
         savePage();
+    }
+
+
+
+
+    public int getRowID(Object objClusteringKeyValue, String strClusteringKeyColumn) throws DBAppException { // returns the row with the given clustering key value
+        return binarySearch(objClusteringKeyValue, strClusteringKeyColumn);
+    }
+
+    private int binarySearch(Object objClusteringKeyValue, String strClusteringKeyColumn) throws DBAppException {
+        int low = 0;
+        int high = _rows.size() - 1;
+        int mid = (low + high) / 2;
+        while (low <= high) {
+            Object midClusteringKeyValue = _rows.get(mid).get(strClusteringKeyColumn);
+            if (objClusteringKeyValue.equals(midClusteringKeyValue)) { // if the primary key is found return the row
+                return mid;
+            } else if (((Comparable) objClusteringKeyValue).compareTo(midClusteringKeyValue) < 0) { // if the primary key is less than the mid key, search in the left half
+                high = mid - 1;
+            } else { // if the primary key is greater than the mid key, search in the right half
+                low = mid + 1;
+            }
+            mid = (low + high) / 2;
+        }
+        return -1; // if the primary key is not found return -1
+    }
+
+    public int binarySearchForInsertion(Object objClusteringKeyValue) throws DBAppException {
+        int low = 0;
+        int high = _rows.size() - 1;
+        int mid = (low + high) / 2;
+        while (low <= high) {
+            if (objClusteringKeyValue.equals(_rows.get(mid).get("id"))) { // if the primary key is found throw an exception
+                throw new DBAppException("Primary key is duplicated");
+            } else if (objClusteringKeyValue.hashCode() < _rows.get(mid).get("id").hashCode()) { // if the primary key is less than the mid key, search in the left half
+                high = mid - 1;
+            } else { // if the primary key is greater than the mid key, search in the right half
+                low = mid + 1;
+            }
+            mid = (low + high) / 2;
+        }
+        return low; // return the index where the primary key should be inserted
     }
 
     public void savePage() {

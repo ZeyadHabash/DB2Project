@@ -263,12 +263,12 @@ public class DBApp {
 
         Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
         tableToInsertInto.loadTable(); // load the table into memory
-        wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call incase not all attributes are included in ht
+        wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
 
         // verify that the input row violates no constraints
         verifyRow(tableToInsertInto, htblColNameValue);
 
-        binarySearchAndInsert(tableToInsertInto, htblColNameValue); // insert the record
+        tableToInsertInto.insertRow(htblColNameValue);
 
         tableToInsertInto.unloadTable(); // unload the table
     }
@@ -297,7 +297,7 @@ public class DBApp {
         Object adjustedClusteringKeyValue = castValue(clusteringKeyDataType, strClusteringKeyValue);
 
         // update the row
-        tableToUpdate.updateRow(index, htblColNameValue);
+        tableToUpdate.updateRow(htblColNameValue);
         tableToUpdate.unloadTable(); // unload the table
     }
 
@@ -338,19 +338,25 @@ public class DBApp {
         } else {
             // if the clustering key is not in the hashtable, delete all rows that match the other conditions
             // currently it goes through the rows linearly
-            // maybe try to switch it to use binary search? idk how though
-            for (int i = 0; i < tableToDeleteFrom.get_intNumberOfRows(); i++) { // loop through all rows in the table
-                boolean toDelete = true; // assume the row should be deleted
-                for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
-                    if (!tableToDeleteFrom.getRowFromIndex(i).get(entry.getKey()).equals(entry.getValue())) { // check if the row value matches the hashtable value for each column name
-                        toDelete = false; // if not, set toDelete to false and break the loop
-                        break;
+            for (int i = 0; i < tableToDeleteFrom.get_pages().size(); i++) {
+                Page currPage = tableToDeleteFrom.get_pages().get(i);
+                currPage.loadPage();
+                for (int j = 0; j < currPage.get_intNumberOfRows(); j++) { // loop through all rows in the table
+                    boolean toDelete = true; // assume the row should be deleted
+                    for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
+                        if (!currPage.get_rows().get(j).get(entry.getKey()).equals(entry.getValue())) { // check if the row value matches the hashtable value for each column name
+                            toDelete = false; // if not, set toDelete to false and break the loop
+                            break;
+                        }
+                    }
+                    if (toDelete) { // if toDelete is still true after checking all columns
+                        tableToDeleteFrom.deleteRow(currPage, j); // delete the row
+                        j--; // decrement i to account for the deleted row
                     }
                 }
-                if (toDelete) { // if toDelete is still true after checking all columns
-                    tableToDeleteFrom.deleteRow(i); // delete the row
-                    i--; // decrement i to account for the deleted row
-                }
+                if(tableToDeleteFrom.get_pages().get(i) != currPage) // if the page was deleted, decrement i to account for the deleted page
+                    i--;
+                currPage.unloadPage();
             }
         }
         tableToDeleteFrom.unloadTable(); // unload the table
@@ -505,18 +511,16 @@ public class DBApp {
         while (left <= right) { // Loop until left index becomes greater than right index
             mid = (left + right) / 2; // Find the middle index
             midClusteringKey = tableToInsertTo.getClusteringKeyFromRow(tableToInsertTo.getRowFromIndex(mid));
-            if (midClusteringKey.equals(newRowClusteringKey)) { // If the middle element is equal to the given element
+            if (midClusteringKey.equals(newRowClusteringKey)) // If the middle element is equal to the given element
                 throw new DBAppException("Primary key duplicated"); // Throw an exception
-            } else if (((Comparable) midClusteringKey).compareTo(newRowClusteringKey) < 0) { // If the middle element is less than the given element
+            else if (((Comparable) midClusteringKey).compareTo(newRowClusteringKey) < 0) // If the middle element is less than the given element
                 left = mid + 1; // Update left index to mid+1
-            } else { // If the middle element is greater than the given element
+            else // If the middle element is greater than the given element
                 right = mid - 1; // Update right index to mid-1
-            }
         }
         // Element doesn't exist in the array, insert it at the correct position
         tableToInsertTo.insertRow(htblColNameValue, left);
     }
-
 
     // This method performs a binary search on a table object
     private int binarySearch(Table tableToSearchIn, Object strClusteringKeyValue) throws DBAppException {
@@ -541,6 +545,7 @@ public class DBApp {
         else
             return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
     }
+     */
 
     private Object castValue(String type, String value) throws DBAppException {
         if (type.equals("java.lang.Integer")) {
