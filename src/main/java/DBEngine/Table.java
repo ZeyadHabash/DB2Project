@@ -14,7 +14,7 @@ public class Table implements Serializable {
     private Hashtable<String, String> _htblColNameType;
     private Hashtable<String, String> _htblColNameMin;
     private Hashtable<String, String> _htblColNameMax;
-    private Vector<Page> _pages;
+    private Vector<String> _pagesID;
     private int _intNumberOfRows;
 
     public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
@@ -24,7 +24,7 @@ public class Table implements Serializable {
         _htblColNameMin = htblColNameMin;
         _htblColNameMax = htblColNameMax;
         _strPath = strPath;
-        _pages = new Vector<Page>();
+        _pagesID = new Vector<String>();
         _intNumberOfRows = 0;
         saveTable();
     }
@@ -50,15 +50,21 @@ public class Table implements Serializable {
         Page page = getPageFromClusteringKey(objClusteringKeyValue);
 
         if (page == null) { // if page not found, create a new page
-            page = new Page(_pages.size(), _strPath, _strTableName);
+            if (_pagesID.size() > 0) {
+                int lastPageID = Integer.parseInt(_pagesID.get(_pagesID.size() - 1)); // get the id of the last page
+                page = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
+            }
+            else
+                page = new Page(0 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
+
             page.addRow(htblNewRow);
-            _pages.add(page);
+            _pagesID.add(page.get_strPageID());
             page.unloadPage();
         } else {
             int intRowID = page.binarySearchForInsertion(objClusteringKeyValue, _strClusteringKeyColumn); // get the row id to insert the row in
             page.addRow(htblNewRow, intRowID); // add the row to the page
             if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
-                splitPage(page, page.get_intPageID());
+                splitPage(page, _pagesID.indexOf(page.get_strPageID()));
 
             page.unloadPage();
         }
@@ -70,7 +76,7 @@ public class Table implements Serializable {
     public void deleteRow(Page page, int intRowID) {
         page.deleteRow(intRowID); // delete the row from the page
         if (page.get_intNumberOfRows() == 0) { // delete the page if it is empty
-            _pages.remove(page.get_intPageID());
+            _pagesID.remove(page.get_strPageID());
             page.deletePage();
         }
         _intNumberOfRows--;
