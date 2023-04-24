@@ -470,29 +470,30 @@ public class DBApp {
         }
     }
 
-    private static void wrapNull(Hashtable<String,Object> htblColNameValue, Table table) throws DBAppException {
+    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
         Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
-        int colsize= table.get_htblColNameType().size();  // are we sure never returns null?
-        if(htblColNameValue.size()==colsize) //all columns are instantiated
+        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
+        if (htblColNameValue.size() == colsize) //all columns are instantiated
         {
             return;
         }
 
-            for (Entry<String, String> entry : entrySet) {
-                String columnNameOriginal = entry.getKey(); //column name from table
-                if (htblColNameValue.containsKey(columnNameOriginal)) //if the column exists in the hashtable
-                {
-                    continue;
-                }
-                else
-                {
-                    String columnType = entry.getValue();
-                    htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
-                }
-
-                     }
+        for (Entry<String, String> entry : entrySet) {
+            String columnNameOriginal = entry.getKey(); //column name from table
+            if (htblColNameValue.containsKey(columnNameOriginal)) //if the column exists in the hashtable
+            {
+                continue;
+            } else {
+                String columnType = entry.getValue();
+                htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
             }
 
+        }
+    }
+
+
+    // FIXME: methods not working anymore due to changing the way deletion works
+    /*
     private void binarySearchAndInsert(Table tableToInsertTo, Hashtable<String, Object> htblColNameValue) throws DBAppException {
         int left = 0; // Initialize left index to 0
         int right = tableToInsertTo.get_intNumberOfRows() - 1; // Initialize right index to last index of the array
