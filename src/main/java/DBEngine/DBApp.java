@@ -266,12 +266,13 @@ public class DBApp {
         wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
 
         // verify that the input row violates no constraints
-        try {
+        verifyRow(tableToInsertInto, htblColNameValue);
+       /* try {
             verifyRow(tableToInsertInto, htblColNameValue);
         } catch (DBAppException e) {
             tableToInsertInto.unloadTable(); // unload the table
             throw e;
-        }
+        }*/
 
         tableToInsertInto.insertRow(htblColNameValue);
 

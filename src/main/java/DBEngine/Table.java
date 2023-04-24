@@ -3,6 +3,7 @@ package DBEngine;
 import Exceptions.DBAppException;
 
 import java.io.*;
+import java.sql.SQLOutput;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -57,6 +58,8 @@ public class Table implements Serializable {
             page.addRow(htblNewRow, intRowID); // add the row to the page
             if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
                 splitPage(page, page.get_intPageID());
+
+            page.unloadPage();
         }
         _intNumberOfRows++;
         unloadAllPages();
@@ -233,6 +236,8 @@ public class Table implements Serializable {
             _htblColNameMax = table.get_htblColNameMax();
             _pages = table.get_pages();
             _intNumberOfRows = table.get_intNumberOfRows();
+            System.out.println("Table loaded successfully");
+            System.out.println("Number of rows in table: " + _intNumberOfRows);
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -246,6 +251,8 @@ public class Table implements Serializable {
         _htblColNameMax = null;
         _pages = null;
         _intNumberOfRows = 0;
+        System.out.println("Table unloaded ");
+
     }
 
     private void deleteTableFile() {
