@@ -26,20 +26,17 @@ public class Page implements Serializable {
     public void addRow(Hashtable<String, Object> htblNewRow){
         _rows.add(htblNewRow);
         _intNumberOfRows++;
-        savePage();
     }
 
     // overridden version of addRow that adds at a specific index instead of normal binary search
     public void addRow(Hashtable<String, Object> htblNewRow, int intRowID) {
         _rows.add(intRowID, htblNewRow);
         _intNumberOfRows++;
-        savePage();
     }
 
     public void deleteRow(int intRowID) {
         _rows.remove(intRowID);
         _intNumberOfRows--;
-        savePage();
     }
 
     /**
@@ -112,7 +109,6 @@ public class Page implements Serializable {
     }
 
     public void savePage() {
-        //deletePage();
         File file = new File(_strPath + _strTableName + _intPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(file);
@@ -144,6 +140,7 @@ public class Page implements Serializable {
     }
 
     public void unloadPage() {
+        savePage();
         _intNumberOfRows = 0;
         _rows = null;
     }

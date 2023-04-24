@@ -266,7 +266,12 @@ public class DBApp {
         wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
 
         // verify that the input row violates no constraints
-        verifyRow(tableToInsertInto, htblColNameValue);
+        try {
+            verifyRow(tableToInsertInto, htblColNameValue);
+        } catch (DBAppException e) {
+            tableToInsertInto.unloadTable(); // unload the table
+            throw e;
+        }
 
         tableToInsertInto.insertRow(htblColNameValue);
 
@@ -290,7 +295,12 @@ public class DBApp {
         tableToUpdate.loadTable(); // load the table into memory
 
         // verify that the input row violates no constraints
-        verifyRow(tableToUpdate, htblColNameValue);
+        try {
+            verifyRow(tableToUpdate, htblColNameValue);
+        }catch (DBAppException e){
+            tableToUpdate.unloadTable();
+            throw e;
+        }
 
         // cast the clustering key value to the correct type
         String clusteringKeyDataType = tableToUpdate.get_htblColNameType().get(tableToUpdate.get_strClusteringKeyColumn());
@@ -321,6 +331,17 @@ public class DBApp {
 
         Table tableToDeleteFrom = getTableFromName(strTableName); // get reference to table
         tableToDeleteFrom.loadTable(); // load the table into memory
+
+        // verify that the input row violates no constraints, if it does, do nothing
+        try{
+            verifyRow(tableToDeleteFrom, htblColNameValue);
+        }catch (DBAppException e){
+            if (e.getMessage().contains("Value out of range")) { // if the error is that the value is out of range, unload the table and return
+                tableToDeleteFrom.unloadTable();
+                return;
+            }
+            throw e; // if the error is anything else, throw it
+        }
 
         // find indexes of rows to delete
         // how to search? binary search? but it's unsorted??? idk tbh :(

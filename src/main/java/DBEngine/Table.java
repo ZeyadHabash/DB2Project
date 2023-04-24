@@ -60,7 +60,6 @@ public class Table implements Serializable {
         }
         _intNumberOfRows++;
         unloadAllPages();
-        saveTable();
     }
 
 
@@ -72,7 +71,6 @@ public class Table implements Serializable {
         }
         _intNumberOfRows--;
         page.unloadPage();
-        saveTable();
     }
 
     public void updateRow(Hashtable<String, Object> htblNewRow) throws DBAppException {
@@ -83,7 +81,6 @@ public class Table implements Serializable {
             throw new DBAppException("Row not found");
         page.updateRow(intRowID, htblNewRow);
         unloadAllPages();
-        saveTable();
     }
 
     public void splitPage(Page currPage, int intCurrPageID) { // splits page if it is full
@@ -105,7 +102,6 @@ public class Table implements Serializable {
         currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
 
         unloadAllPages();
-        saveTable();
     }
 
     // FIXME: this method is not working anymore due to changing the way deletion works
@@ -243,6 +239,7 @@ public class Table implements Serializable {
     }
 
     public void unloadTable() {
+        saveTable();
         _strClusteringKeyColumn = null;
         _htblColNameType = null;
         _htblColNameMin = null;
