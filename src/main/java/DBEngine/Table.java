@@ -94,22 +94,23 @@ public class Table implements Serializable {
 //        unloadAllPages();
     }
 
-    public void splitPage(Page currPage, int intCurrPageID) { // splits page if it is full
+    public void splitPage(Page currPage, int intCurrPageIndex) throws DBAppException { // splits page if it is full
         int lastRowIDinPage = currPage.get_rows().size() - 1; // get the id of the last row in the page
         Hashtable<String, Object> lastRow = currPage.get_rows().get(lastRowIDinPage); // get the last row in the page
 
-        if (intCurrPageID == _pages.size() - 1) { // if the page is the last page in the table
-            Page newPage = new Page(_pages.size(), _strPath, _strTableName); // create a new page
+        if (intCurrPageIndex == _pagesID.size() - 1) { // if the page is the last page in the table
+            int lastPageID = Integer.parseInt(_pagesID.get(_pagesID.size() - 1)); // get the id of the last page
+            Page newPage = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
             newPage.addRow(lastRow);
-            _pages.add(newPage);
+            _pagesID.add(newPage.get_strPageID());
             newPage.unloadPage();
         } else { // if the page is not the last page in the table
-            int intNextPageID = intCurrPageID + 1; // get the id of the next page
-            Page nextPage = _pages.get(intNextPageID); // get the next page
-            nextPage.loadPage(); // load the next page
+            int intNextPageIndex = intCurrPageIndex + 1; // get the id of the next page
+            String nextPageID = _pagesID.get(intNextPageIndex); // get the next page
+            Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
             nextPage.addRow(lastRow, 0); // add the last row to the next page as the first row
             if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows) // if the next page is full, split it
-                splitPage(nextPage, intNextPageID);
+                splitPage(nextPage, intNextPageIndex);
             nextPage.unloadPage();
         }
         currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
@@ -138,10 +139,10 @@ public class Table implements Serializable {
 */
     //so what does null signify? last page needs to be added' value index greater than all values
 
-    public Page getPageFromClusteringKey(Object objClusteringKeyValue) {
-        for (int i = 0; i < _pages.size(); i++) {
-            Page page = _pages.get(i);
-            page.loadPage();
+    public Page getPageFromClusteringKey(Object objClusteringKeyValue) throws DBAppException {
+        for (int i = 0; i < _pagesID.size(); i++) {
+            String pageID = _pagesID.get(i); // get the id of the page
+            Page page = Page.loadPage(_strPath, _strTableName, pageID); // load the page
             Object firstRowClusteringKey = page.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the page
             Object lastRowClusteringKey = page.get_rows().get(page.get_rows().size() - 1).get(_strClusteringKeyColumn); // get the clustering key of the last row in the page
             if (((Comparable) firstRowClusteringKey).compareTo(objClusteringKeyValue) >= 0)  // if the clustering key of the first row is greater than or equal to the clustering key of the row to be inserted
@@ -149,10 +150,10 @@ public class Table implements Serializable {
             if (((Comparable) lastRowClusteringKey).compareTo(objClusteringKeyValue) >= 0) // if the clustering key of the last row is greater than or equal to the clustering key of the row to be inserted
                 return page; // return the page
             if (page.get_intNumberOfRows() < DBApp.intMaxRows) { // if the page is not full and in between the clustering keys of the first and last rows
-                if (i == _pages.size() - 1)
+                if (i == _pagesID.size() - 1)
                     return page;
-                Page nextPage = _pages.get(i + 1); // get the next page
-                nextPage.loadPage(); // load the next page
+                String nextPageID = _pagesID.get(i + 1); // get the next page ID
+                Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
                 Object nextPageFirstRowClusteringKey = nextPage.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the next page
                 nextPage.unloadPage();
                 if (((Comparable) nextPageFirstRowClusteringKey).compareTo(objClusteringKeyValue) > 0) // if the clustering key of the first row in the next page is greater than the clustering key of the row to be inserted
@@ -243,7 +244,7 @@ public class Table implements Serializable {
             _htblColNameType = table.get_htblColNameType();
             _htblColNameMin = table.get_htblColNameMin();
             _htblColNameMax = table.get_htblColNameMax();
-            _pages = table.get_pages();
+            _pagesID = table.get_pagesID();
             _intNumberOfRows = table.get_intNumberOfRows();
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -256,7 +257,7 @@ public class Table implements Serializable {
         _htblColNameType = null;
         _htblColNameMin = null;
         _htblColNameMax = null;
-        _pages = null;
+        _pagesID = null;
         _intNumberOfRows = 0;
     }
 
@@ -274,14 +275,16 @@ public class Table implements Serializable {
     @Override
     public String toString() {
         String pages = "";
-        for (Page page : _pages) {
-            page.loadPage();
-            pages += page + "\n";
-            page.unloadPage();
+        for (String pageID : _pagesID) {
+            try {
+                Page page = Page.loadPage(_strPath, _strTableName, pageID);
+                pages += page + "\n";
+                page.unloadPage();
+            } catch (DBAppException e) {
+            }
         }
 //        unloadAllPages();
         return pages;
-
     }
 
 
@@ -336,8 +339,8 @@ public class Table implements Serializable {
         this._strPath = _strPath;
     }
 
-    public Vector<Page> get_pages() {
-        return _pages;
+    public Vector<String> get_pagesID() {
+        return _pagesID;
     }
 
     public int get_intNumberOfRows() {

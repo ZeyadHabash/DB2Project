@@ -23,7 +23,7 @@ public class Page implements Serializable {
     }
 
     // following method adds a row at the end of the page
-    public void addRow(Hashtable<String, Object> htblNewRow){
+    public void addRow(Hashtable<String, Object> htblNewRow) {
         _rows.add(htblNewRow);
         _intNumberOfRows++;
     }
@@ -67,8 +67,6 @@ public class Page implements Serializable {
     }
 
 
-
-
     public int getRowID(Object objClusteringKeyValue, String strClusteringKeyColumn) throws DBAppException { // returns the row with the given clustering key value
         return binarySearch(objClusteringKeyValue, strClusteringKeyColumn);
     }
@@ -109,7 +107,7 @@ public class Page implements Serializable {
     }
 
     public void savePage() {
-        File file = new File(_strPath + _strTableName + _intPageID + ".class");
+        File file = new File(_strPath + _strTableName + _strPageID + ".class");
         try {
             FileOutputStream fos = new FileOutputStream(file);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
@@ -122,21 +120,21 @@ public class Page implements Serializable {
     }
 
     // not sure if correct
-    public void loadPage() {
-        File file = new File(_strPath + _strTableName + _intPageID + ".class");
+    public static Page loadPage(String _strPath, String _strTableName, String _strPageID) throws DBAppException {
+        File file = new File(_strPath + _strTableName + _strPageID + ".class");
         try {
             FileInputStream fis = new FileInputStream(file);
             ObjectInputStream ois = new ObjectInputStream(fis);
             Page page = (Page) ois.readObject();
             ois.close();
             fis.close();
-            _intNumberOfRows = page.get_intNumberOfRows();
-            _rows = page.get_rows();
+            return page;
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+        throw new DBAppException("Page not found");
     }
 
     public void unloadPage() {
@@ -147,13 +145,13 @@ public class Page implements Serializable {
 
 
     public void deletePage() {
-        File file = new File(_strPath + _strTableName + _intPageID + ".class");
+        File file = new File(_strPath + _strTableName + _strPageID + ".class");
         file.delete();
     }
 
     @Override
     public String toString() {
-        String rows = "Page ID: " + _intPageID + "\n";
+        String rows = "Page ID: " + _strPageID + "\n";
         for (int i = 0; i < _rows.size(); i++) {
             rows += _rows.get(i).toString() + "\n";
         }
@@ -162,12 +160,12 @@ public class Page implements Serializable {
 
     // Getters and Setters
 
-    public int get_intPageID() {
-        return _intPageID;
+    public String get_strPageID() {
+        return _strPageID;
     }
 
-    public void set_intPageID(int _intPageID) {
-        this._intPageID = _intPageID;
+    public void set_strPageID(String _strPageID) {
+        this._strPageID = _strPageID;
     }
 
     public int get_intNumberOfRows() {

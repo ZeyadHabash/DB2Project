@@ -285,11 +285,6 @@ public class DBApp {
             throw e; // if the error is anything else, throw it
         }
 
-        // find indexes of rows to delete
-        // how to search? binary search? but it's unsorted??? idk tbh :(
-        // store all indexes to delete in an array the delete them? idk aswell
-        // or just delete them as we find them? idk
-
         if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
             // if the clustering key is in the hashtable, delete only one row
             Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
@@ -301,9 +296,9 @@ public class DBApp {
         } else {
             // if the clustering key is not in the hashtable, delete all rows that match the other conditions
             // currently it goes through the rows linearly
-            for (int i = 0; i < tableToDeleteFrom.get_pages().size(); i++) {
-                Page currPage = tableToDeleteFrom.get_pages().get(i);
-                currPage.loadPage();
+            for (int i = 0; i < tableToDeleteFrom.get_pagesID().size(); i++) {
+                String currPageID = tableToDeleteFrom.get_pagesID().get(i);
+                Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
                 for (int j = 0; j < currPage.get_intNumberOfRows(); j++) { // loop through all rows in the table
                     boolean toDelete = true; // assume the row should be deleted
                     for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
@@ -317,7 +312,7 @@ public class DBApp {
                         j--; // decrement i to account for the deleted row
                     }
                 }
-                if(tableToDeleteFrom.get_pages().get(i) != currPage) // if the page was deleted, decrement i to account for the deleted page
+                if(tableToDeleteFrom.get_pagesID().get(i) != currPageID) // if the page was deleted, decrement i to account for the deleted page
                     i--;
                 currPage.unloadPage();
             }
@@ -459,56 +454,6 @@ public class DBApp {
 
         }
     }
-
-
-    // FIXME: methods not working anymore due to changing the way deletion works
-    /*
-    private void binarySearchAndInsert(Table tableToInsertTo, Hashtable<String, Object> htblColNameValue) throws DBAppException {
-        int left = 0; // Initialize left index to 0
-        int right = tableToInsertTo.get_intNumberOfRows() - 1; // Initialize right index to last index of the array
-        int mid;
-        Object midClusteringKey;
-        Object newRowClusteringKey = tableToInsertTo.getClusteringKeyFromRow(htblColNameValue);
-
-        // Perform binary search to check if element exists
-        while (left <= right) { // Loop until left index becomes greater than right index
-            mid = (left + right) / 2; // Find the middle index
-            midClusteringKey = tableToInsertTo.getClusteringKeyFromRow(tableToInsertTo.getRowFromIndex(mid));
-            if (midClusteringKey.equals(newRowClusteringKey)) // If the middle element is equal to the given element
-                throw new DBAppException("Primary key duplicated"); // Throw an exception
-            else if (((Comparable) midClusteringKey).compareTo(newRowClusteringKey) < 0) // If the middle element is less than the given element
-                left = mid + 1; // Update left index to mid+1
-            else // If the middle element is greater than the given element
-                right = mid - 1; // Update right index to mid-1
-        }
-        // Element doesn't exist in the array, insert it at the correct position
-        tableToInsertTo.insertRow(htblColNameValue, left);
-    }
-
-    // This method performs a binary search on a table object
-    private int binarySearch(Table tableToSearchIn, Object strClusteringKeyValue) throws DBAppException {
-        // Call the recursive helper method
-        return binarySearchHelper(tableToSearchIn, 0, tableToSearchIn.get_intNumberOfRows() - 1, strClusteringKeyValue);
-    }
-
-    private int binarySearchHelper(Table tableToSearchIn, int intMinIndex, int intMaxIndex, Object strClusteringKeyValue) throws DBAppException {
-        // Calculate the middle index of the table
-        int mid = (intMinIndex + intMaxIndex) / 2;
-        // Get the clustering key value of the row at the middle index
-        Object midClusteringKey = tableToSearchIn.getClusteringKeyFromRow(tableToSearchIn.getRowFromIndex(mid));
-        // Check if the minimum index is greater than the maximum index, or if the middle index is out of bounds
-        if (intMinIndex > intMaxIndex || mid < 0 || mid >= tableToSearchIn.get_intNumberOfRows())
-            return -1; // Return -1 to indicate that the key value was not found
-
-        // Check if the clustering key value at the middle index matches the target value
-        if (midClusteringKey.equals(strClusteringKeyValue)) return mid; // Return the middle index as the result
-            // Check if the clustering key value at the middle index is greater than the target value
-        else if (((Comparable) midClusteringKey).compareTo(strClusteringKeyValue) > 0)
-            return binarySearchHelper(tableToSearchIn, intMinIndex, mid - 1, strClusteringKeyValue); // Recursively search in the left half of the table
-        else
-            return binarySearchHelper(tableToSearchIn, mid + 1, intMaxIndex, strClusteringKeyValue); // Recursively search in the right half of the table
-    }
-     */
 
     private Object castValue(String type, String value) throws DBAppException {
         if (type.equals("java.lang.Integer")) {
