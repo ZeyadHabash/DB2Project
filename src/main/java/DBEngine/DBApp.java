@@ -437,8 +437,8 @@ public class DBApp {
                 } else if (columnValue instanceof Date) {
                     Date value = (Date) columnValue;
                     try {
-                        Date min = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMin().get(columnName));
-                        Date max = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMax().get(columnName));
+                        Date min = new SimpleDateFormat().parse(table.get_htblColNameMin().get(columnName));
+                        Date max = new SimpleDateFormat().parse(table.get_htblColNameMax().get(columnName));
                         if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
                             throw new DBAppException("Value out of range");
                         }
@@ -470,7 +470,7 @@ public class DBApp {
             return value;
         } else if (type.equals("java.util.Date")) {
             try {
-                return new SimpleDateFormat(dateFormat).parse(value);
+                return new SimpleDateFormat().parse(value);
             } catch (ParseException e) {
                 throw new DBAppException("Invalid date format (yyyy-MM-dd)");
             }

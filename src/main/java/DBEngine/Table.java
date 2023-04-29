@@ -3,7 +3,6 @@ package DBEngine;
 import Exceptions.DBAppException;
 
 import java.io.*;
-import java.sql.SQLOutput;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -35,16 +34,6 @@ public class Table implements Serializable {
     }
 
     public void insertRow(Hashtable<String, Object> htblNewRow) throws DBAppException {
-        // TODO: have an external method to find the page to insert in
-        // TODO add this following commented code to said method
-//        if (_pages.size() == 0) { // if no pages exist yet, create one and add the row to it
-//            Page page = new Page(0, _strPath, _strTableName);
-//            page.addRow(htblNewRow);
-//            _pages.add(page); }
-//        if (intPageID >= _pages.size()) { // if the page doesn't exist yet, create it and add the row to it
-//            Page page = new Page(intPageID, _strPath, _strTableName);
-//            page.addRow(htblNewRow);
-//            _pages.add(page); }
         //     if the page exists, add the row to it
         Object objClusteringKeyValue = htblNewRow.get(_strClusteringKeyColumn);
         Page page = getPageFromClusteringKey(objClusteringKeyValue);
@@ -53,9 +42,8 @@ public class Table implements Serializable {
             if (_pagesID.size() > 0) {
                 int lastPageID = Integer.parseInt(_pagesID.get(_pagesID.size() - 1)); // get the id of the last page
                 page = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
-            }
-            else
-                page = new Page(0 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
+            } else
+                page = new Page(0 + "", _strPath, _strTableName); // create a new page with the id 0
 
             page.addRow(htblNewRow);
             _pagesID.add(page.get_strPageID());
@@ -69,7 +57,6 @@ public class Table implements Serializable {
             page.unloadPage();
         }
         _intNumberOfRows++;
-//        unloadAllPages();
     }
 
 
@@ -88,10 +75,8 @@ public class Table implements Serializable {
         int intRowID = getRowIDFromClusteringKey(page, objClusteringKeyValue);
         if (page == null || intRowID == -1) // if page or row not found,
             return; // don't do anything
-//          throw new DBAppException("Row not found");
         page.updateRow(intRowID, htblNewRow);
         page.unloadPage();
-//        unloadAllPages();
     }
 
     public void splitPage(Page currPage, int intCurrPageIndex) throws DBAppException { // splits page if it is full
@@ -114,30 +99,7 @@ public class Table implements Serializable {
             nextPage.unloadPage();
         }
         currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
-//        unloadAllPages();
     }
-
-    // FIXME: this method is not working anymore due to changing the way deletion works
-/*    // Returns the index of the row in the table
-    public int getIndexFromRow(Hashtable<String, Object> htblColNameValue) {
-        int intPageID = 0;
-        int intRowID = 0;
-        for (Page page : _pages) { // loop over all pages
-            page.loadPage();
-            for (Hashtable<String, Object> row : page.get_rows()) { // loop over all rows in a page
-                if (row.equals(htblColNameValue)) { // if row is equal to given row
-                    page.unloadPage(); // unload the page before returning
-                    return intPageID * DBApp.intMaxRows + intRowID; // return the index
-                }
-                intRowID++; // if row does not match check the next row
-            }
-            page.unloadPage(); // unload the current page before moving on to the next one
-            intPageID++; // if row not found in current page check next page
-        }
-        return -1; // if row not found return -1
-    }
-*/
-    //so what does null signify? last page needs to be added' value index greater than all values
 
     public Page getPageFromClusteringKey(Object objClusteringKeyValue) throws DBAppException {
         for (int i = 0; i < _pagesID.size(); i++) {
@@ -161,7 +123,7 @@ public class Table implements Serializable {
             }
             page.unloadPage(); // unload the page before moving on to the next one
         }
-        return null; // if the page is not found return null ( TODO: use this to create a new page when inserting)
+        return null; // if the page is not found return null
     }
 
     public int getRowIDFromClusteringKey(Page page, Object objClusteringKeyValue) throws DBAppException {
@@ -169,54 +131,11 @@ public class Table implements Serializable {
             return -1; // if the page is not found return null ( TODO: use this to create a new page when inserting)
         int rowId = page.getRowID(objClusteringKeyValue, _strClusteringKeyColumn);
         return rowId;
-
-
-        // FIXME: outdated due to changing the way rows are deleted
-        /*int intPageID = 0;
-        int intRowID = 0;
-        for (Page page : _pages) { // loop over all pages
-            page.loadPage();
-            for (Hashtable<String, Object> row : page.get_rows()) { // loop over all rows in a page
-                if (row.get(_strClusteringKeyColumn).equals(objClusteringKeyValue)) { // if row is equal to given row
-                    page.unloadPage(); // unload the page before returning
-                    return row; // return the row
-                }
-                intRowID++; // if row does not match check the next row
-            }
-            page.unloadPage(); // unload the current page before moving on to the next one
-            intPageID++; // if row not found in current page check next page
-        }
-        return null; // if row not found return null
-         */
     }
 
     public Object getClusteringKeyFromRow(Hashtable<String, Object> htblColNameValue) {
         return htblColNameValue.get(_strClusteringKeyColumn);
     }
-
-    // FIXME: this method is not working anymore due to changing the way deletion works
-    /*// Returns the row of a given index
-    public Hashtable<String, Object> getRowFromIndex(int intRowIndex) throws DBAppException {
-        int intPageID = intRowIndex / DBApp.intMaxRows;
-        int intRowID = intRowIndex % DBApp.intMaxRows;
-        if (intPageID >= _pages.size()) throw new DBAppException("row does not exist");
-        Page page = _pages.get(intPageID);
-        page.loadPage();
-        Hashtable<String, Object> row = page.get_rows().get(intRowID);
-        page.unloadPage();
-        return row;
-    }
-
-     */
-
-    // FIXME: this method is not working anymore due to changing the way deletion works
-    /*
-    public Object getClusteringKeyFromIndex(int intRowIndex) throws DBAppException {
-        return getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
-    }
-
-     */
-
 
     // should we have save table and load table methods?
     public void saveTable() {
@@ -266,12 +185,6 @@ public class Table implements Serializable {
         file.delete();
     }
 
-//    public void unloadAllPages() {
-//        for (Page page : _pages) {
-//            page.unloadPage();
-//        }
-//    }
-
     @Override
     public String toString() {
         String pages = "";
@@ -283,7 +196,6 @@ public class Table implements Serializable {
             } catch (DBAppException e) {
             }
         }
-//        unloadAllPages();
         return pages;
     }
 

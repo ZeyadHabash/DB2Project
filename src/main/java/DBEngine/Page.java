@@ -62,8 +62,6 @@ public class Page implements Serializable {
             htblOldRow.replace(keys.get(i), htblNewRow.get(keys.get(i)));
         }
 
-        // Save the page
-        savePage();
     }
 
 
@@ -94,9 +92,10 @@ public class Page implements Serializable {
         int high = _rows.size() - 1;
         int mid = (low + high) / 2;
         while (low <= high) {
-            if (objClusteringKeyValue.equals(_rows.get(mid).get(strClusteringKeyColumn))) { // if the primary key is found throw an exception
+            Object midClusteringKeyValue = _rows.get(mid).get(strClusteringKeyColumn);
+            if (objClusteringKeyValue.equals(midClusteringKeyValue)) { // if the primary key is found throw an exception
                 throw new DBAppException("Primary key is duplicated");
-            } else if (objClusteringKeyValue.hashCode() < _rows.get(mid).get(strClusteringKeyColumn).hashCode()) { // if the primary key is less than the mid key, search in the left half
+            } else if (((Comparable) objClusteringKeyValue).compareTo(midClusteringKeyValue) < 0) { // if the primary key is less than the mid key, search in the left half
                 high = mid - 1;
             } else { // if the primary key is greater than the mid key, search in the right half
                 low = mid + 1;
@@ -115,11 +114,11 @@ public class Page implements Serializable {
             oos.close();
             fos.close();
         } catch (IOException e) {
+            System.out.println("Error initializing stream");
             e.printStackTrace();
         }
     }
 
-    // not sure if correct
     public static Page loadPage(String _strPath, String _strTableName, String _strPageID) throws DBAppException {
         File file = new File(_strPath + _strTableName + _strPageID + ".class");
         try {
@@ -129,12 +128,9 @@ public class Page implements Serializable {
             ois.close();
             fis.close();
             return page;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            throw new DBAppException("Page not found");
         }
-        throw new DBAppException("Page not found");
     }
 
     public void unloadPage() {
