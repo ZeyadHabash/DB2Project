@@ -22,23 +22,6 @@ public class DBApp {
 
     }
 
-    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
-        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
-        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
-        if (htblColNameValue.size() == colsize) //all columns are instantiated
-            return;
-
-        for (Entry<String, String> entry : entrySet) {
-            String columnNameOriginal = entry.getKey(); //column name from table
-            if (!htblColNameValue.containsKey(columnNameOriginal)) //if the column does not exist in the hashtable
-                if (columnNameOriginal.equals(table.get_strClusteringKeyColumn()))
-                    throw new DBAppException("Cannot insert row with primary key null");
-            String columnType = entry.getValue();
-            htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
-        }
-
-    }
-
     public void init() {
         // create data folder if it doesn't exist
         File dataFolder = new File(strDataFolderPath);
@@ -219,6 +202,11 @@ public class DBApp {
         2-primary key duplicated
          */
 
+        if (strTableName == null)
+            throw new DBAppException("Table name is null");
+        if (htblColNameValue == null)
+            throw new DBAppException("Row is null");
+
         Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
         tableToInsertInto.loadTable(); // load the table into memory
 
@@ -254,6 +242,10 @@ public class DBApp {
         // Add the record to the table
         // Save the table
 
+        if (strTableName == null)
+            throw new DBAppException("Table name is null");
+        if (htblColNameValue == null)
+            throw new DBAppException("Row is null");
         if (strClusteringKeyValue == null)
             throw new DBAppException("Clustering key is null");
 
@@ -295,6 +287,11 @@ public class DBApp {
         1- no such row
         ???
          */
+
+        if (strTableName == null)
+            throw new DBAppException("Table name is null");
+        if (htblColNameValue == null)
+            throw new DBAppException("Row is null");
 
         Table tableToDeleteFrom = getTableFromName(strTableName); // get reference to table
         tableToDeleteFrom.loadTable(); // load the table into memory
@@ -437,8 +434,8 @@ public class DBApp {
                 } else if (columnValue instanceof Date) {
                     Date value = (Date) columnValue;
                     try {
-                        Date min = new SimpleDateFormat().parse(table.get_htblColNameMin().get(columnName));
-                        Date max = new SimpleDateFormat().parse(table.get_htblColNameMax().get(columnName));
+                        Date min = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMin().get(columnName));
+                        Date max = new SimpleDateFormat(dateFormat).parse(table.get_htblColNameMax().get(columnName));
                         if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
                             throw new DBAppException("Value out of range");
                         }
@@ -470,7 +467,7 @@ public class DBApp {
             return value;
         } else if (type.equals("java.util.Date")) {
             try {
-                return new SimpleDateFormat().parse(value);
+                return new SimpleDateFormat(dateFormat).parse(value);
             } catch (ParseException e) {
                 throw new DBAppException("Invalid date format (yyyy-MM-dd)");
             }
@@ -478,6 +475,22 @@ public class DBApp {
         return null;
     }
 
+    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
+        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
+        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
+        if (htblColNameValue.size() == colsize) //all columns are instantiated
+            return;
+
+        for (Entry<String, String> entry : entrySet) {
+            String columnNameOriginal = entry.getKey(); //column name from table
+            if (!htblColNameValue.containsKey(columnNameOriginal)) //if the column does not exist in the hashtable
+                if (columnNameOriginal.equals(table.get_strClusteringKeyColumn()))
+                    throw new DBAppException("Cannot insert row with primary key null");
+            String columnType = entry.getValue();
+            htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
+        }
+
+    }
 
     private Hashtable<String, Object> castToLowerCase(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
         Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
