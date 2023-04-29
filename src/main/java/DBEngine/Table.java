@@ -1,6 +1,9 @@
 package DBEngine;
 
+import Exceptions.DBAppException;
+
 import java.io.*;
+import java.sql.SQLOutput;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -8,21 +11,20 @@ public class Table implements Serializable {
     private String _strTableName;
     private String _strClusteringKeyColumn;
     private String _strPath;
-    private Hashtable<String,String> _htblColNameType;
-    private Hashtable<String,String> _htblColNameMin;
-    private Hashtable<String,String> _htblColNameMax;
-    private Vector<Page> _pages;
+    private Hashtable<String, String> _htblColNameType;
+    private Hashtable<String, String> _htblColNameMin;
+    private Hashtable<String, String> _htblColNameMax;
+    private Vector<String> _pagesID;
     private int _intNumberOfRows;
 
-    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String,String> htblColNameType,
-                 Hashtable<String,String> htblColNameMin, Hashtable<String,String> htblColNameMax, String strPath) {
+    public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
         _strClusteringKeyColumn = strClusteringKeyColumn;
         _htblColNameType = htblColNameType;
         _htblColNameMin = htblColNameMin;
         _htblColNameMax = htblColNameMax;
         _strPath = strPath;
-        _pages = new Vector<Page>();
+        _pagesID = new Vector<String>();
         _intNumberOfRows = 0;
         saveTable();
     }
@@ -32,137 +34,193 @@ public class Table implements Serializable {
         _strPath = strPath;
     }
 
-    // TODO : sort rows after adding
-    // TODO : function should take clustering key value as a parameter and insert the row in the correct place
-    public void insertRow(Hashtable<String,Object> htblNewRow, int intRowIndex){
-        if(_pages.size() == 0) { // if no pages exist yet, create one and add the row to it
-            Page page = new Page(0, _strPath, _strTableName);
+    public void insertRow(Hashtable<String, Object> htblNewRow) throws DBAppException {
+        // TODO: have an external method to find the page to insert in
+        // TODO add this following commented code to said method
+//        if (_pages.size() == 0) { // if no pages exist yet, create one and add the row to it
+//            Page page = new Page(0, _strPath, _strTableName);
+//            page.addRow(htblNewRow);
+//            _pages.add(page); }
+//        if (intPageID >= _pages.size()) { // if the page doesn't exist yet, create it and add the row to it
+//            Page page = new Page(intPageID, _strPath, _strTableName);
+//            page.addRow(htblNewRow);
+//            _pages.add(page); }
+        //     if the page exists, add the row to it
+        Object objClusteringKeyValue = htblNewRow.get(_strClusteringKeyColumn);
+        Page page = getPageFromClusteringKey(objClusteringKeyValue);
+
+        if (page == null) { // if page not found, create a new page
+            if (_pagesID.size() > 0) {
+                int lastPageID = Integer.parseInt(_pagesID.get(_pagesID.size() - 1)); // get the id of the last page
+                page = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
+            }
+            else
+                page = new Page(0 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
+
             page.addRow(htblNewRow);
-            _pages.add(page);
-        }else {
-            int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
-            int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
-            Page page = _pages.get(intPageID); // get the page
-            page.loadPage(); // load the page from the disk
+            _pagesID.add(page.get_strPageID());
+            page.unloadPage();
+        } else {
+            int intRowID = page.binarySearchForInsertion(objClusteringKeyValue, _strClusteringKeyColumn); // get the row id to insert the row in
             page.addRow(htblNewRow, intRowID); // add the row to the page
             if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
-                splitPage(page, intPageID);
+                splitPage(page, _pagesID.indexOf(page.get_strPageID()));
+
+            page.unloadPage();
         }
         _intNumberOfRows++;
-        saveTable();
+//        unloadAllPages();
     }
 
 
-    //TODO : handle the case where the row is not found (?)
-    //TODO : handle deleting from a middle page
-    //TODO : sort rows after deleting
-    public void deleteRow(int intRowIndex){
-        int intPageID = (int) (intRowIndex / DBApp.intMaxRows); // get the page id which contains the row
-        int intRowID = intRowIndex % DBApp.intMaxRows; // get the row id in the page
-        Page page = _pages.get(intPageID); // get the page
-        page.loadPage(); // load the page from the disk
+    public void deleteRow(Page page, int intRowID) {
         page.deleteRow(intRowID); // delete the row from the page
-        if(page.get_intNumberOfRows() == 0) { // delete the page if it is empty
-            _pages.remove(intPageID);
+        if (page.get_intNumberOfRows() == 0) { // delete the page if it is empty
+            _pagesID.remove(page.get_strPageID());
             page.deletePage();
-        }else if(page.get_intNumberOfRows() < DBApp.intMaxRows && intPageID < _pages.size() - 1){ // if the page is not full and it is not the last page, merge it with the next page
-            Page nextPage = _pages.get(intPageID + 1);
-            nextPage.loadPage(); // load next page from disk
-            page.addRow(nextPage.get_rows().get(0));
-            nextPage.deleteRow(0);
-            if(nextPage.get_intNumberOfRows() == 0){
-                _pages.remove(intPageID + 1);
-                nextPage.deletePage();
-            }
         }
         _intNumberOfRows--;
-        saveTable();
+        page.unloadPage();
     }
 
-    //TODO : sort rows after updating
-    public void updateRow(int intRowIndex, Hashtable<String,Object> htblNewRow){
-        int intPageID = intRowIndex / DBApp.intMaxRows;
-        int intRowID = intRowIndex % DBApp.intMaxRows;
-        Page page = _pages.get(intPageID);
-        page.loadPage();
+    public void updateRow(Hashtable<String, Object> htblNewRow, Object objClusteringKeyValue) throws DBAppException {
+        Page page = getPageFromClusteringKey(objClusteringKeyValue);
+        int intRowID = getRowIDFromClusteringKey(page, objClusteringKeyValue);
+        if (page == null || intRowID == -1) // if page or row not found,
+            return; // don't do anything
+//          throw new DBAppException("Row not found");
         page.updateRow(intRowID, htblNewRow);
-        saveTable();
+        page.unloadPage();
+//        unloadAllPages();
     }
 
-    public void splitPage(Page currPage, int intCurrPageID){
-        int lastRowIndex = currPage.get_rows().size()-1;
-        Hashtable<String,Object> lastRow = currPage.get_rows().get(lastRowIndex);
+    public void splitPage(Page currPage, int intCurrPageIndex) throws DBAppException { // splits page if it is full
+        int lastRowIDinPage = currPage.get_rows().size() - 1; // get the id of the last row in the page
+        Hashtable<String, Object> lastRow = currPage.get_rows().get(lastRowIDinPage); // get the last row in the page
 
-        if(intCurrPageID == _pages.size() - 1){
-            Page newPage = new Page(_pages.size(), _strPath, _strTableName);
+        if (intCurrPageIndex == _pagesID.size() - 1) { // if the page is the last page in the table
+            int lastPageID = Integer.parseInt(_pagesID.get(_pagesID.size() - 1)); // get the id of the last page
+            Page newPage = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
             newPage.addRow(lastRow);
-            _pages.add(newPage);
-        }else{
-            int intNextPageID = intCurrPageID + 1;
-            Page nextPage = _pages.get(intNextPageID);
-            nextPage.loadPage();
-            nextPage.addRow(lastRow, 0);
-            if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows)
-                splitPage(nextPage, intNextPageID);
+            _pagesID.add(newPage.get_strPageID());
+            newPage.unloadPage();
+        } else { // if the page is not the last page in the table
+            int intNextPageIndex = intCurrPageIndex + 1; // get the id of the next page
+            String nextPageID = _pagesID.get(intNextPageIndex); // get the next page
+            Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+            nextPage.addRow(lastRow, 0); // add the last row to the next page as the first row
+            if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows) // if the next page is full, split it
+                splitPage(nextPage, intNextPageIndex);
+            nextPage.unloadPage();
         }
-        currPage.deleteRow(lastRowIndex);
-
-        saveTable();
+        currPage.deleteRow(lastRowIDinPage); // delete the last row from the current page
+//        unloadAllPages();
     }
 
-    // Returns the index of the row in the table
-    public int getIndexFromRow(Hashtable<String,Object> htblColNameValue){
+    // FIXME: this method is not working anymore due to changing the way deletion works
+/*    // Returns the index of the row in the table
+    public int getIndexFromRow(Hashtable<String, Object> htblColNameValue) {
         int intPageID = 0;
         int intRowID = 0;
-        for(Page page : _pages){ // loop over all pages
+        for (Page page : _pages) { // loop over all pages
             page.loadPage();
-            for(Hashtable<String,Object> row : page.get_rows()){ // loop over all rows in a page
-                if(row.equals(htblColNameValue)){ // if row is equal to given row
+            for (Hashtable<String, Object> row : page.get_rows()) { // loop over all rows in a page
+                if (row.equals(htblColNameValue)) { // if row is equal to given row
+                    page.unloadPage(); // unload the page before returning
                     return intPageID * DBApp.intMaxRows + intRowID; // return the index
                 }
                 intRowID++; // if row does not match check the next row
             }
+            page.unloadPage(); // unload the current page before moving on to the next one
             intPageID++; // if row not found in current page check next page
         }
         return -1; // if row not found return -1
     }
+*/
+    //so what does null signify? last page needs to be added' value index greater than all values
 
-    public Hashtable<String,Object> getRowFromClusteringKey(Object objClusteringKeyValue){
-        int intPageID = 0;
+    public Page getPageFromClusteringKey(Object objClusteringKeyValue) throws DBAppException {
+        for (int i = 0; i < _pagesID.size(); i++) {
+            String pageID = _pagesID.get(i); // get the id of the page
+            Page page = Page.loadPage(_strPath, _strTableName, pageID); // load the page
+            Object firstRowClusteringKey = page.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the page
+            Object lastRowClusteringKey = page.get_rows().get(page.get_rows().size() - 1).get(_strClusteringKeyColumn); // get the clustering key of the last row in the page
+            if (((Comparable) firstRowClusteringKey).compareTo(objClusteringKeyValue) >= 0)  // if the clustering key of the first row is greater than or equal to the clustering key of the row to be inserted
+                return page;
+            if (((Comparable) lastRowClusteringKey).compareTo(objClusteringKeyValue) >= 0) // if the clustering key of the last row is greater than or equal to the clustering key of the row to be inserted
+                return page; // return the page
+            if (page.get_intNumberOfRows() < DBApp.intMaxRows) { // if the page is not full and in between the clustering keys of the first and last rows
+                if (i == _pagesID.size() - 1)
+                    return page;
+                String nextPageID = _pagesID.get(i + 1); // get the next page ID
+                Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+                Object nextPageFirstRowClusteringKey = nextPage.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the next page
+                nextPage.unloadPage();
+                if (((Comparable) nextPageFirstRowClusteringKey).compareTo(objClusteringKeyValue) > 0) // if the clustering key of the first row in the next page is greater than the clustering key of the row to be inserted
+                    return page;
+            }
+            page.unloadPage(); // unload the page before moving on to the next one
+        }
+        return null; // if the page is not found return null ( TODO: use this to create a new page when inserting)
+    }
+
+    public int getRowIDFromClusteringKey(Page page, Object objClusteringKeyValue) throws DBAppException {
+        if (page == null)
+            return -1; // if the page is not found return null ( TODO: use this to create a new page when inserting)
+        int rowId = page.getRowID(objClusteringKeyValue, _strClusteringKeyColumn);
+        return rowId;
+
+
+        // FIXME: outdated due to changing the way rows are deleted
+        /*int intPageID = 0;
         int intRowID = 0;
-        for(Page page : _pages){ // loop over all pages
+        for (Page page : _pages) { // loop over all pages
             page.loadPage();
-            for(Hashtable<String,Object> row : page.get_rows()){ // loop over all rows in a page
-                if(row.get(_strClusteringKeyColumn).equals(objClusteringKeyValue)){ // if row is equal to given row
+            for (Hashtable<String, Object> row : page.get_rows()) { // loop over all rows in a page
+                if (row.get(_strClusteringKeyColumn).equals(objClusteringKeyValue)) { // if row is equal to given row
+                    page.unloadPage(); // unload the page before returning
                     return row; // return the row
                 }
                 intRowID++; // if row does not match check the next row
             }
+            page.unloadPage(); // unload the current page before moving on to the next one
             intPageID++; // if row not found in current page check next page
         }
         return null; // if row not found return null
+         */
     }
 
-    public Object getClusteringKeyFromRow(Hashtable<String,Object> htblColNameValue){
+    public Object getClusteringKeyFromRow(Hashtable<String, Object> htblColNameValue) {
         return htblColNameValue.get(_strClusteringKeyColumn);
     }
 
-    // Returns the row of a given index
-    public Hashtable<String,Object> getRowFromIndex(int intRowIndex){
+    // FIXME: this method is not working anymore due to changing the way deletion works
+    /*// Returns the row of a given index
+    public Hashtable<String, Object> getRowFromIndex(int intRowIndex) throws DBAppException {
         int intPageID = intRowIndex / DBApp.intMaxRows;
         int intRowID = intRowIndex % DBApp.intMaxRows;
+        if (intPageID >= _pages.size()) throw new DBAppException("row does not exist");
         Page page = _pages.get(intPageID);
         page.loadPage();
-        return page.get_rows().get(intRowID);
+        Hashtable<String, Object> row = page.get_rows().get(intRowID);
+        page.unloadPage();
+        return row;
     }
-    public Object getClusteringKeyFromIndex(int intRowIndex){
-        return  getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
+
+     */
+
+    // FIXME: this method is not working anymore due to changing the way deletion works
+    /*
+    public Object getClusteringKeyFromIndex(int intRowIndex) throws DBAppException {
+        return getRowFromIndex(intRowIndex).get(_strClusteringKeyColumn);
     }
+
+     */
 
 
     // should we have save table and load table methods?
-    public void saveTable(){
-        File file = new File(_strPath + _strTableName + ".class");
+    public void saveTable() {
+        File file = new File(_strPath + _strTableName + ".ser");
         try {
             FileOutputStream fos = new FileOutputStream(file);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
@@ -174,73 +232,119 @@ public class Table implements Serializable {
         }
     }
 
-    public void loadTable(){
-        File file = new File(_strPath + _strTableName + ".class");
+    public void loadTable() {
+        File file = new File(_strPath + _strTableName + ".ser");
         try {
             FileInputStream fis = new FileInputStream(file);
             ObjectInputStream ois = new ObjectInputStream(fis);
             Table table = (Table) ois.readObject();
             ois.close();
             fis.close();
-            _strTableName = table.get_strTableName();
             _strClusteringKeyColumn = table.get_strClusteringKeyColumn();
             _htblColNameType = table.get_htblColNameType();
             _htblColNameMin = table.get_htblColNameMin();
             _htblColNameMax = table.get_htblColNameMax();
-            _strPath = table.get_strPath();
-            _pages = table.get_pages();
+            _pagesID = table.get_pagesID();
             _intNumberOfRows = table.get_intNumberOfRows();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
 
+    public void unloadTable() {
+        saveTable();
+        _strClusteringKeyColumn = null;
+        _htblColNameType = null;
+        _htblColNameMin = null;
+        _htblColNameMax = null;
+        _pagesID = null;
+        _intNumberOfRows = 0;
+    }
+
+    private void deleteTableFile() {
+        File file = new File(_strPath + _strTableName + ".ser");
+        file.delete();
+    }
+
+//    public void unloadAllPages() {
+//        for (Page page : _pages) {
+//            page.unloadPage();
+//        }
+//    }
+
+    @Override
+    public String toString() {
+        String pages = "";
+        for (String pageID : _pagesID) {
+            try {
+                Page page = Page.loadPage(_strPath, _strTableName, pageID);
+                pages += page + "\n";
+                page.unloadPage();
+            } catch (DBAppException e) {
+            }
+        }
+//        unloadAllPages();
+        return pages;
+    }
+
+
     // getters and setters
-
-
 
 
     public String get_strTableName() {
         return _strTableName;
     }
+
     public void set_strTableName(String _strTableName) {
         this._strTableName = _strTableName;
     }
+
     public String get_strClusteringKeyColumn() {
         return _strClusteringKeyColumn;
     }
+
     public void set_strClusteringKeyColumn(String _strClusteringKeyColumn) {
         this._strClusteringKeyColumn = _strClusteringKeyColumn;
     }
+
     public Hashtable<String, String> get_htblColNameType() {
         return _htblColNameType;
     }
+
     public void set_htblColNameType(Hashtable<String, String> _htblColNameType) {
         this._htblColNameType = _htblColNameType;
     }
+
     public Hashtable<String, String> get_htblColNameMin() {
         return _htblColNameMin;
     }
+
     public void set_htblColNameMin(Hashtable<String, String> _htblColNameMin) {
         this._htblColNameMin = _htblColNameMin;
     }
+
     public Hashtable<String, String> get_htblColNameMax() {
         return _htblColNameMax;
     }
+
     public void set_htblColNameMax(Hashtable<String, String> _htblColNameMax) {
         this._htblColNameMax = _htblColNameMax;
     }
+
     public String get_strPath() {
         return _strPath;
     }
+
     public void set_strPath(String _strPath) {
         this._strPath = _strPath;
     }
-    public Vector<Page> get_pages() {
-        return _pages;
+
+    public Vector<String> get_pagesID() {
+        return _pagesID;
     }
-    public int get_intNumberOfRows() {return _intNumberOfRows;}
+
+    public int get_intNumberOfRows() {
+        return _intNumberOfRows;
+    }
 
 }
