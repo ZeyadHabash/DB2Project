@@ -22,7 +22,24 @@ public class DBApp {
 
     }
 
-    public void init() throws DBAppException {
+    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
+        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
+        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
+        if (htblColNameValue.size() == colsize) //all columns are instantiated
+            return;
+
+        for (Entry<String, String> entry : entrySet) {
+            String columnNameOriginal = entry.getKey(); //column name from table
+            if (!htblColNameValue.containsKey(columnNameOriginal)) //if the column does not exist in the hashtable
+                if (columnNameOriginal.equals(table.get_strClusteringKeyColumn()))
+                    throw new DBAppException("Cannot insert row with primary key null");
+            String columnType = entry.getValue();
+            htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
+        }
+
+    }
+
+    public void init() {
         // create data folder if it doesn't exist
         File dataFolder = new File(strDataFolderPath);
         if (!dataFolder.exists()) {
@@ -34,7 +51,7 @@ public class DBApp {
             try {
                 metadataFile.createNewFile();
             } catch (Exception e) {
-                throw new DBAppException("Error creating metadata file");
+                System.out.println("Error creating metadata file");
             }
         }
         // TODO: store min and max values in config file
@@ -71,7 +88,7 @@ public class DBApp {
             }
             br.close();
         } catch (Exception e) {
-            throw new DBAppException("Error reading metadata file");
+            System.out.println("Error reading metadata file");
         }
 
         // get max octree nodes from config file
@@ -204,6 +221,8 @@ public class DBApp {
 
         Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
         tableToInsertInto.loadTable(); // load the table into memory
+
+        htblColNameValue = castToLowerCase(htblColNameValue, tableToInsertInto);
         wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
 
         // verify that the input row violates no constraints
@@ -220,6 +239,8 @@ public class DBApp {
         tableToInsertInto.unloadTable(); // unload the table
     }
 
+    // Helper methods
+
     // following method updates one row only
     // htblColNameValue holds the key and new value
     // htblColNameValue will not include clustering key as column name
@@ -233,13 +254,17 @@ public class DBApp {
         // Add the record to the table
         // Save the table
 
+        if (strClusteringKeyValue == null)
+            throw new DBAppException("Clustering key is null");
+
         Table tableToUpdate = getTableFromName(strTableName); // get reference to table
         tableToUpdate.loadTable(); // load the table into memory
 
         // verify that the input row violates no constraints
         try {
+            htblColNameValue = castToLowerCase(htblColNameValue, tableToUpdate);
             verifyRow(tableToUpdate, htblColNameValue);
-        }catch (DBAppException e){
+        } catch (DBAppException e) {
             tableToUpdate.unloadTable();
             throw e;
         }
@@ -275,9 +300,10 @@ public class DBApp {
         tableToDeleteFrom.loadTable(); // load the table into memory
 
         // verify that the input row violates no constraints, if it does, do nothing
-        try{
+        try {
+            htblColNameValue = castToLowerCase(htblColNameValue, tableToDeleteFrom);
             verifyRow(tableToDeleteFrom, htblColNameValue);
-        }catch (DBAppException e){
+        } catch (DBAppException e) {
             if (e.getMessage().contains("Value out of range")) { // if the error is that the value is out of range, unload the table and return
                 tableToDeleteFrom.unloadTable();
                 return;
@@ -312,7 +338,7 @@ public class DBApp {
                         j--; // decrement i to account for the deleted row
                     }
                 }
-                if(tableToDeleteFrom.get_pagesID().get(i) != currPageID) // if the page was deleted, decrement i to account for the deleted page
+                if (tableToDeleteFrom.get_pagesID().get(i) != currPageID) // if the page was deleted, decrement i to account for the deleted page
                     i--;
                 currPage.unloadPage();
             }
@@ -330,8 +356,6 @@ public class DBApp {
         // Return the iterator
         return null;
     }
-
-    // Helper methods
 
     private Table getTableFromName(String strTableName) throws DBAppException {
         // Check if the table exists
@@ -354,11 +378,6 @@ public class DBApp {
                 String columnName = entry.getKey();
                 Object columnValue = entry.getValue();
                 String columnType = table.get_htblColNameType().get(columnName);
-
-                // check if primary key exists
-                if (columnType == null) {
-                    throw new DBAppException("Column not found");
-                }
 
                 // check if data type matches within the row
                 if (columnType.equals("java.lang.Integer")) {
@@ -434,27 +453,6 @@ public class DBApp {
         }
     }
 
-    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
-        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
-        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
-        if (htblColNameValue.size() == colsize) //all columns are instantiated
-        {
-            return;
-        }
-
-        for (Entry<String, String> entry : entrySet) {
-            String columnNameOriginal = entry.getKey(); //column name from table
-            if (htblColNameValue.containsKey(columnNameOriginal)) //if the column exists in the hashtable
-            {
-                continue;
-            } else {
-                String columnType = entry.getValue();
-                htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
-            }
-
-        }
-    }
-
     private Object castValue(String type, String value) throws DBAppException {
         if (type.equals("java.lang.Integer")) {
             try {
@@ -478,5 +476,26 @@ public class DBApp {
             }
         }
         return null;
+    }
+
+
+    private Hashtable<String, Object> castToLowerCase(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
+        Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
+        Hashtable<String, Object> newRow = new Hashtable<String, Object>();
+        for (Entry<String, Object> entry : entrySet) {
+            String columnName = entry.getKey();
+            Object columnValue = entry.getValue();
+            String columnType = table.get_htblColNameType().get(columnName);
+
+            // check if column exists in table
+            if (columnType == null)
+                throw new DBAppException("Column" + columnName + "does not exist in the table");
+
+            if (columnType.equals("java.lang.String"))
+                newRow.put(columnName, ((String) columnValue).toLowerCase());
+            else
+                newRow.put(columnName, columnValue);
+        }
+        return newRow;
     }
 }
