@@ -12,7 +12,7 @@ import java.util.Map.Entry;
 public class DBApp {
 
     public static int intMaxRows;
-    private final String strDataFolderPath = "resources/data";
+    private final String strDataFolderPath = "src/resources/data";
     private final String dateFormat = "yyyy-MM-dd";
     private Vector<Table> tables;
     private File metadataFile;
@@ -29,7 +29,7 @@ public class DBApp {
             dataFolder.mkdir();
         }
         // go to data folder and create metadata.csv if it doesn't exist
-        metadataFile = new File("resources/metadata.csv");
+        metadataFile = new File("src/resources/metadata.csv");
         if (!metadataFile.exists()) {
             try {
                 metadataFile.createNewFile();
@@ -41,7 +41,7 @@ public class DBApp {
         // get max rows from config file
         Properties prop = new Properties();
         try {
-            prop.load(new FileInputStream("resources/DBApp.config"));
+            prop.load(new FileInputStream("src/resources/DBApp.config"));
             intMaxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinTablePage"));
         } catch (IOException e) {
             e.printStackTrace();
