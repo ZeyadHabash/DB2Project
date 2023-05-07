@@ -12,6 +12,7 @@ import java.util.Map.Entry;
 public class DBApp {
 
     public static int intMaxRows;
+    public static int intMaxEntriesPerNode;
     private final String strDataFolderPath = "src/resources/data";
     private final String dateFormat = "yyyy-MM-dd";
     private Vector<Table> tables;

@@ -1,4 +1,7 @@
 package DBEngine;
+
+import Exceptions.DBAppException;
+
 public class SQLTerm {
     String _strTableName;
     String _strColumnName;
@@ -25,8 +28,11 @@ public class SQLTerm {
     public String get_strOperator() {
         return _strOperator;
     }
-    public void set_strOperator(String _strOperator) {
-        this._strOperator = _strOperator;
+    public void set_strOperator(String _strOperator) throws DBAppException {
+        if (_strOperator.equals("=") || _strOperator.equals("!=") || _strOperator.equals(">") || _strOperator.equals("<") || _strOperator.equals(">=") || _strOperator.equals("<="))
+            this._strOperator = _strOperator;
+        else
+            throw new DBAppException("Invalid operator");
     }
     public Object get_objValue() {
         return _objValue;
