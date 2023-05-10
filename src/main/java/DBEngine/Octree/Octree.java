@@ -21,14 +21,14 @@ public class Octree {
     public void insert(Object[] objarrEntry, String strPageName) {
         Node nodeToInsertIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToInsertIn == null)
-            nodeToInsertIn = _nodeRoot;
+            //TODO: if null then entry not found in octree
         nodeToInsertIn.addEntry(objarrEntry, strPageName);
     }
 
     public void delete(Object[] objarrEntry) {
         Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToDeleteFrom == null)
-            nodeToDeleteFrom = _nodeRoot;
+            //TODO: if null then entry not found in octree
         nodeToDeleteFrom.removeEntry(objarrEntry);
         if (nodeToDeleteFrom.isEmpty() && nodeToDeleteFrom != _nodeRoot) {
             if (nodeToDeleteFrom.get_nodeParent().childrenEmpty())

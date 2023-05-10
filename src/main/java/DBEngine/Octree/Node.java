@@ -66,16 +66,30 @@ public class Node {
     public Node searchChildren(Object[] objEntry){
         for(Node node : _nodearrChildren){
             if(node.entryFits(objEntry)){
-                if (node.isLeaf())
-                    return node;
+                if (node.isLeaf()) {
+                    if (node.isEntryInNode(objEntry))
+                        return node;
+                    else
+                        return null; // entry not found
+                }
                 else
                     return node.searchChildren(objEntry);
             }
         }
-        return null;
+        if (isEntryInNode(objEntry))
+            return this;
+
+        return null; // entry not found
     }
 
 
+    public boolean isEntryInNode(Object[] objEntry){
+        for(Object[] objEntryInNode : _objVectorEntries){
+            if(objEntryInNode.equals(objEntry))
+                return true;
+        }
+        return false;
+    }
 
     public boolean entryFits(Object[] objEntry) {
         for (int i = 0; i < _objarrMinValues.length; i++) {
@@ -235,6 +249,8 @@ public class Node {
     public boolean isEmpty() {
         return _intEntriesCount == 0;
     }
+
+
 
     // Getters and setters
     public Vector<Object[]> get_objVectorEntries() {
