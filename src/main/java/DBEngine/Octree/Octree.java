@@ -48,6 +48,40 @@ public class Octree {
         }
     }
 
+    public void deleteRow(Object[] objarrEntry, Object objEntryPk) {
+        Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
+        if (nodeToDeleteFrom == null) {
+            //TODO: if null then node not found in octree
+            System.out.println("Delete index: row values out of range");
+            return;
+        }
+        if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
+            //TODO: if false then entry not found in octree
+            System.out.println("should not happen , every row has index");
+            return;
+        }
+        nodeToDeleteFrom.removeRow(objarrEntry, objEntryPk);
+        if (nodeToDeleteFrom.isEmpty() && nodeToDeleteFrom != _nodeRoot) {
+            if (nodeToDeleteFrom.get_nodeParent().childrenEmpty())
+                nodeToDeleteFrom.get_nodeParent().setNodeAsLeaf();
+        }
+    }
+
+    //TODO: search
+    public OctreeEntry searchEntry(Object[] objarrEntry) {
+        Node nodeToSearchIn = _nodeRoot.searchChildren(objarrEntry);
+        if (nodeToSearchIn == null){
+            System.out.println("Search index: row values out of range");
+            return null;
+        }
+        if(!nodeToSearchIn.isEntryInNode(objarrEntry)){
+            System.out.println("Search index: should not happen , every row has index");
+            return null;
+        }
+        return nodeToSearchIn.getEntry(objarrEntry);
+    }
+
+
     private Object[] getMinValues() {
         Object[] objarrMinValues = new Object[3];
         Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
