@@ -29,9 +29,20 @@ public class Node {
         _objarrMidValues = getMidValues();
     }
 
-    public void addEntry(Object[] objEntry, String strPageName) {
+    public void addEntry(Object[] objarrEntry, String strPageName, Object objEntryPk) {
+        // if entry already exists then add duplicate
+        for (OctreeEntry entry : _octreeEntryEntries) {
+            if (entry.get_objarrEntryValues().equals(objarrEntry)) {
+                entry.addDuplicate(strPageName, objEntryPk);
+                return;
+            }
+        }
+        // Creating and adding the new entry
+        OctreeEntry newEntry = new OctreeEntry(objEntryPk, objarrEntry, strPageName);
+        _octreeEntryEntries.add(newEntry);
+        _intEntriesCount++;
         // if node is full then create children and distribute entries
-        if (_intEntriesCount == DBApp.intMaxEntriesPerNode) {
+        if (_intEntriesCount > DBApp.intMaxEntriesPerNode) {
             _nodearrChildren = new Node[8]; // Create 8 children
             for (int i = 0; i < 8; i++) {
                 Object objMinValues[] = setChildMin(i);
@@ -50,50 +61,71 @@ public class Node {
                     }
                 }
             }
-        } else {
-            _objVectorEntries.add(objEntry);
-            _strVectorPages.add(strPageName);
-            _intEntriesCount++;
         }
     }
 
-    public void removeEntry(Object[] objEntry) {
-        _intEntriesCount--;
-        _strVectorPages.remove(_objVectorEntries.indexOf(objEntry));
-        _objVectorEntries.remove(objEntry);
+    // Overloaded method to add an OctreeEntry to children
+    private void addEntry(OctreeEntry entry) {
+        _octreeEntryEntries.add(entry);
+        _intEntriesCount++;
     }
 
-    public Node searchChildren(Object[] objEntry){
-        for(Node node : _nodearrChildren){
-            if(node.entryFits(objEntry)){
-                if (node.isLeaf()) {
-                    if (node.isEntryInNode(objEntry))
-                        return node;
-                    else
-                        return null; // entry not found
+    public void removeRow(Object[] objarrEntry, Object objEntryPk) {
+        for (OctreeEntry entry : _octreeEntryEntries) {
+            if (entry.get_objarrEntryValues().equals(objarrEntry)) {
+                entry.removeDuplicate(objEntryPk);
+                if (entry.isEmpty()) {
+                    _octreeEntryEntries.remove(entry);
+                    _intEntriesCount--;
                 }
-                else
-                    return node.searchChildren(objEntry);
+                return;
             }
         }
-        if (isEntryInNode(objEntry))
+    }
+
+    public void removeEntry(Object[] objarrEntry) {
+        for (OctreeEntry entry : _octreeEntryEntries) {
+            if (entry.get_objarrEntryValues().equals(objarrEntry))
+                _octreeEntryEntries.remove(entry);
+        }
+        _intEntriesCount--;
+    }
+
+    public OctreeEntry getEntry(Object[] objarrEntry){
+        for (OctreeEntry entry : _octreeEntryEntries) {
+            if (entry.get_objarrEntryValues().equals(objarrEntry))
+                return entry;
+        }
+        return null;
+    }
+
+    public Node searchChildren(Object[] objarrEntry) {
+        for (Node node : _nodearrChildren) {
+            if (node.entryFits(objarrEntry)) {
+                if (node.isLeaf())
+                    return node;
+                else
+                    return node.searchChildren(objarrEntry);
+            }
+        }
+        if (entryFits(objarrEntry))
             return this;
 
         return null; // entry not found
     }
 
 
-    public boolean isEntryInNode(Object[] objEntry){
-        for(Object[] objEntryInNode : _objVectorEntries){
-            if(objEntryInNode.equals(objEntry))
+    public boolean isEntryInNode(Object[] objarrEntry) {
+        for (OctreeEntry entry : _octreeEntryEntries) {
+            if (entry.get_objarrEntryValues().equals(objarrEntry))
                 return true;
         }
         return false;
     }
 
-    public boolean entryFits(Object[] objEntry) {
+    public boolean entryFits(Object[] objarrEntry) {
         for (int i = 0; i < _objarrMinValues.length; i++) {
-            if (((Comparable) objEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objEntry[i]).compareTo(_objarrMaxValues[i]) >= 0) {
+            if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) >= 0) {
                 return false;
             }
         }
@@ -226,7 +258,7 @@ public class Node {
         return newString;
     }
 
-    public boolean childrenEmpty(){
+    public boolean childrenEmpty() {
         for (int i = 0; i < _nodearrChildren.length; i++) {
             if (!_nodearrChildren[i].isEmpty())
                 return false;
@@ -234,7 +266,7 @@ public class Node {
         return true;
     }
 
-    public void setNodeAsLeaf(){
+    public void setNodeAsLeaf() {
         _nodearrChildren = null;
     }
 
@@ -251,15 +283,7 @@ public class Node {
     }
 
 
-
     // Getters and setters
-    public Vector<Object[]> get_objVectorEntries() {
-        return _objVectorEntries;
-    }
-
-    public void set_objVectorEntries(Vector<Object[]> _objVectorEntries) {
-        this._objVectorEntries = _objVectorEntries;
-    }
 
     public Node[] get_nodearrChildren() {
         return _nodearrChildren;
