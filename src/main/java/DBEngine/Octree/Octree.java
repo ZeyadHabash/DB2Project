@@ -12,22 +12,24 @@ public class Octree implements Serializable {
     private Node _nodeRoot;
     private Table _table;
     private Hashtable<String, String> _htblColNameType;
-
+    private String _strIndexName;
     private String _strPath;
 
-    public Octree(Table table, Hashtable<String, String> htblColNameType) {
+    public Octree(Table table, Hashtable<String, String> htblColNameType, String strIndexName) {
         _table = table;
         _htblColNameType = htblColNameType;
+        _strIndexName = strIndexName;
         _nodeRoot = new Node(getMinValues(), getMaxValues(), getColTypes());
 
-        String strIndexedColumns = "_";
-        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
-        for (Entry<String, String> entry : entrySet) {
-            strIndexedColumns += entry.getKey() + "_";
-        }
-        _strPath = table.get_strPath() + strIndexedColumns + "_index.ser";
-
+        _strPath = table.get_strPath() + "_" + _strIndexName + "_index.ser";
         saveOctree();
+    }
+
+    public Octree(Table table, String strIndexName) {
+        _table = table;
+        _strIndexName = strIndexName;
+
+        _strPath = table.get_strPath() + "_" + _strIndexName + "_index.ser";
     }
 
     public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) {
@@ -79,7 +81,7 @@ public class Octree implements Serializable {
         }
     }
 
-    //TODO: search
+
     public OctreeEntry searchEntry(Object[] objarrEntry) {
         Node nodeToSearchIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToSearchIn == null) {
@@ -91,6 +93,19 @@ public class Octree implements Serializable {
             return null;
         }
         return nodeToSearchIn.getEntry(objarrEntry);
+    }
+
+    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {
+        Node nodeToUpdateIn = _nodeRoot.searchChildren(objarrEntry);
+        if (nodeToUpdateIn == null) {
+            System.out.println("Update Page index: row values out of range");
+            return;
+        }
+        if (!nodeToUpdateIn.isEntryInNode(objarrEntry)) {
+            System.out.println("Update Page index: should not happen , every row has index");
+            return;
+        }
+        nodeToUpdateIn.updateEntryPage(objarrEntry, objEntryPk, strNewPageName);
     }
 
 
@@ -146,13 +161,14 @@ public class Octree implements Serializable {
         }
     }
 
-    public void loadOctree(){
+    public void loadOctree() {
         File file = new File(_strPath);
         try {
             FileInputStream fis = new FileInputStream(file);
             ObjectInputStream ois = new ObjectInputStream(fis);
             Octree octree = (Octree) ois.readObject();
             this._nodeRoot = octree.get_nodeRoot();
+            this._htblColNameType = octree.get_htblColNameType();
             ois.close();
             fis.close();
         } catch (IOException | ClassNotFoundException e) {
@@ -160,9 +176,10 @@ public class Octree implements Serializable {
         }
     }
 
-    public void unloadOctree(){
+    public void unloadOctree() {
         saveOctree();
         _nodeRoot = null;
+        _htblColNameType = null;
     }
 
     // TODO: add tostring method

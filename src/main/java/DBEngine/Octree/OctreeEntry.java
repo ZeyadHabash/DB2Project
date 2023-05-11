@@ -29,6 +29,11 @@ public class OctreeEntry implements Serializable{
         _objVectorEntryPk.remove(index);
     }
 
+    public void updatePage(Object objEntryPk, String strNewPageName) {
+        int index = _objVectorEntryPk.indexOf(objEntryPk);
+        _strVectorPages.set(index, strNewPageName);
+    }
+
     public boolean isEmpty() {
         return _objVectorEntryPk.isEmpty();
     }

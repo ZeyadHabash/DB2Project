@@ -97,6 +97,11 @@ public class Node implements Serializable {
         return null;
     }
 
+    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName){
+        OctreeEntry entry = getEntry(objarrEntry);
+        entry.updatePage(objEntryPk, strNewPageName);
+    }
+
     public Node searchChildren(Object[] objarrEntry) {
         for (Node node : _nodearrChildren) {
             if (node.entryFits(objarrEntry)) {

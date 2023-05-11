@@ -1,9 +1,12 @@
 package DBEngine;
 
+import DBEngine.Octree.Octree;
 import Exceptions.DBAppException;
 
 import java.io.*;
 import java.util.Hashtable;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Vector;
 
 public class Table implements Serializable {
@@ -15,6 +18,7 @@ public class Table implements Serializable {
     private Hashtable<String, String> _htblColNameMax;
     private Vector<String> _pagesID;
     private int _intNumberOfRows;
+    private Vector<String> _indices;
 
     public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
@@ -25,6 +29,7 @@ public class Table implements Serializable {
         _strPath = strPath;
         _pagesID = new Vector<String>();
         _intNumberOfRows = 0;
+        _indices = new Vector<String>();
         saveTable();
     }
 
@@ -47,10 +52,18 @@ public class Table implements Serializable {
 
             page.addRow(htblNewRow);
             _pagesID.add(page.get_strPageID());
+
+            // insert row into index
+            insertRowInIndex(page, htblNewRow);
+
             page.unloadPage();
         } else {
             int intRowID = page.binarySearchForInsertion(objClusteringKeyValue, _strClusteringKeyColumn); // get the row id to insert the row in
             page.addRow(htblNewRow, intRowID); // add the row to the page
+
+            // insert row into index
+            insertRowInIndex(page, htblNewRow);
+
             if (page.get_intNumberOfRows() > DBApp.intMaxRows) // if the page is full, split it
                 splitPage(page, _pagesID.indexOf(page.get_strPageID()));
 
@@ -61,6 +74,11 @@ public class Table implements Serializable {
 
 
     public void deleteRow(Page page, int intRowID) {
+        // delete row from index
+        Hashtable<String, Object> row = page.get_rows().get(intRowID);
+        deleteRowFromIndex(row);
+
+        // delete row from page
         page.deleteRow(intRowID); // delete the row from the page
         if (page.get_intNumberOfRows() == 0) { // delete the page if it is empty
             _pagesID.remove(page.get_strPageID());
@@ -73,9 +91,19 @@ public class Table implements Serializable {
     public void updateRow(Hashtable<String, Object> htblNewRow, Object objClusteringKeyValue) throws DBAppException {
         Page page = getPageFromClusteringKey(objClusteringKeyValue);
         int intRowID = getRowIDFromClusteringKey(page, objClusteringKeyValue);
+
+        // delete row from index
+        Hashtable<String, Object> row = page.get_rows().get(intRowID);
+        deleteRowFromIndex(row);
+
         if (page == null || intRowID == -1) // if page or row not found,
             return; // don't do anything
         page.updateRow(intRowID, htblNewRow);
+
+        // insert row back into index
+        row = page.get_rows().get(intRowID);
+        insertRowInIndex(page, row);
+
         page.unloadPage();
     }
 
@@ -88,12 +116,20 @@ public class Table implements Serializable {
             Page newPage = new Page(lastPageID + 1 + "", _strPath, _strTableName); // create a new page with the id of the last page + 1
             newPage.addRow(lastRow);
             _pagesID.add(newPage.get_strPageID());
+
+            // insert row into index
+            updatePageInIndex(newPage, lastRow);
+
             newPage.unloadPage();
         } else { // if the page is not the last page in the table
             int intNextPageIndex = intCurrPageIndex + 1; // get the id of the next page
             String nextPageID = _pagesID.get(intNextPageIndex); // get the next page
             Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
             nextPage.addRow(lastRow, 0); // add the last row to the next page as the first row
+
+            // insert row into index
+            updatePageInIndex(nextPage, lastRow);
+
             if (nextPage.get_intNumberOfRows() > DBApp.intMaxRows) // if the next page is full, split it
                 splitPage(nextPage, intNextPageIndex);
             nextPage.unloadPage();
@@ -137,7 +173,55 @@ public class Table implements Serializable {
         return htblColNameValue.get(_strClusteringKeyColumn);
     }
 
-    // should we have save table and load table methods?
+    private Vector<Octree> getIndicesOnTable() {
+        Vector<Octree> indices = new Vector<Octree>();
+        for (String indexName : _indices) {
+            Octree index = new Octree(this, indexName);
+            index.loadOctree();
+            indices.add(index);
+        }
+        return indices;
+    }
+
+    private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) {
+        Vector<Octree> indices = getIndicesOnTable();
+        for (Octree index : indices) {
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblNewRow);
+            index.insertRow(objarrEntryValues, page.get_strPageID(), htblNewRow.get(_strClusteringKeyColumn));
+            index.unloadOctree();
+        }
+    }
+
+    private void updatePageInIndex(Page newPage, Hashtable<String, Object> htblRow) {
+        Vector<Octree> indices = getIndicesOnTable();
+        for (Octree index : indices) {
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow);
+            index.updateEntryPage(objarrEntryValues, htblRow.get(_strClusteringKeyColumn), newPage.get_strPageID());
+            index.unloadOctree();
+        }
+    }
+
+    private void deleteRowFromIndex(Hashtable<String, Object> htblRow) {
+        Vector<Octree> indices = getIndicesOnTable();
+        for (Octree index : indices) {
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow);
+            index.deleteRow(objarrEntryValues, htblRow.get(_strClusteringKeyColumn));
+            index.unloadOctree();
+        }
+    }
+
+    private Object[] getEntryValuesFromRow(Hashtable<String, Object> htblRow) {
+        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+        Object[] objarrEntryValues = new Object[3];
+        int i = 0;
+        for (Entry<String, String> entry : entrySet) {
+            String colName = entry.getKey();
+            objarrEntryValues[i] = htblRow.get(colName);
+            i++;
+        }
+        return objarrEntryValues;
+    }
+
     public void saveTable() {
         File file = new File(_strPath + _strTableName + ".ser");
         try {
@@ -165,6 +249,8 @@ public class Table implements Serializable {
             _htblColNameMax = table.get_htblColNameMax();
             _pagesID = table.get_pagesID();
             _intNumberOfRows = table.get_intNumberOfRows();
+            _indices = table.get_indices();
+
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -178,6 +264,7 @@ public class Table implements Serializable {
         _htblColNameMax = null;
         _pagesID = null;
         _intNumberOfRows = 0;
+        _indices = null;
     }
 
     private void deleteTableFile() {
@@ -259,4 +346,7 @@ public class Table implements Serializable {
         return _intNumberOfRows;
     }
 
+    public Vector<String> get_indices() {
+        return _indices;
+    }
 }
