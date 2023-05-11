@@ -7,8 +7,7 @@ import java.util.Date;
 import java.util.Vector;
 
 public class Node {
-    private Vector<Object[]> _objVectorEntries;
-    private Vector<String> _strVectorPages;
+    private Vector<OctreeEntry> _octreeEntryEntries;
     private Node[] _nodearrChildren;
     private Node _nodeParent;
     private int _intEntriesCount;
@@ -22,8 +21,7 @@ public class Node {
         _objarrMaxValues = objarrMinValues;
         _strarrColTypes = strarrColTypes;
 
-        _objVectorEntries = new Vector<Object[]>();
-        _strVectorPages = new Vector<String>();
+        _octreeEntryEntries = new Vector<OctreeEntry>();
         _nodearrChildren = null; // Leaf node by default
         _intEntriesCount = 0;
         _objarrMidValues = getMidValues();
@@ -52,11 +50,10 @@ public class Node {
 
                 // distribute entries to children
                 for (int j = 0; j < _intEntriesCount; j++) {
-                    Object[] objEntryToDistribute = _objVectorEntries.get(j);
-                    String strPageNameToDistribute = _strVectorPages.get(j);
-                    if (_nodearrChildren[i].entryFits(objEntryToDistribute)) {
-                        _nodearrChildren[i].addEntry(objEntryToDistribute, strPageNameToDistribute);
-                        removeEntry(objEntryToDistribute);
+                    OctreeEntry entryToDistribute = _octreeEntryEntries.get(j);
+                    if (_nodearrChildren[i].entryFits(entryToDistribute.get_objarrEntryValues())) {
+                        _nodearrChildren[i].addEntry(entryToDistribute);
+                        removeEntry(entryToDistribute.get_objarrEntryValues());
                         j--;
                     }
                 }
@@ -319,5 +316,13 @@ public class Node {
 
     public Object[] get_objarrMidValues() {
         return _objarrMidValues;
+    }
+
+    public Vector<OctreeEntry> get_octreeEntryEntries() {
+        return _octreeEntryEntries;
+    }
+
+    public void set_octreeEntryEntries(Vector<OctreeEntry> _octreeEntryEntries) {
+        this._octreeEntryEntries = _octreeEntryEntries;
     }
 }

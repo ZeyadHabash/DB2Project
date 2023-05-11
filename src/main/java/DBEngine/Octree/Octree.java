@@ -18,7 +18,7 @@ public class Octree {
         _nodeRoot = new Node(getMinValues(), getMaxValues(), getColTypes());
     }
 
-    public void insert(Object[] objarrEntry, String strPageName) {
+    public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) {
         Node nodeToInsertIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToInsertIn == null) {
             System.out.println("Insert index: row values out of range");
