@@ -2,20 +2,32 @@ package DBEngine.Octree;
 
 import DBEngine.Table;
 
+import java.io.*;
 import java.util.Hashtable;
 import java.util.Map.Entry;
 import java.util.Set;
 
-public class Octree {
+public class Octree implements Serializable {
 
     private Node _nodeRoot;
     private Table _table;
     private Hashtable<String, String> _htblColNameType;
 
+    private String _strPath;
+
     public Octree(Table table, Hashtable<String, String> htblColNameType) {
         _table = table;
         _htblColNameType = htblColNameType;
         _nodeRoot = new Node(getMinValues(), getMaxValues(), getColTypes());
+
+        String strIndexedColumns = "_";
+        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+        for (Entry<String, String> entry : entrySet) {
+            strIndexedColumns += entry.getKey() + "_";
+        }
+        _strPath = table.get_strPath() + strIndexedColumns + "_index.ser";
+
+        saveOctree();
     }
 
     public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) {
@@ -70,11 +82,11 @@ public class Octree {
     //TODO: search
     public OctreeEntry searchEntry(Object[] objarrEntry) {
         Node nodeToSearchIn = _nodeRoot.searchChildren(objarrEntry);
-        if (nodeToSearchIn == null){
+        if (nodeToSearchIn == null) {
             System.out.println("Search index: row values out of range");
             return null;
         }
-        if(!nodeToSearchIn.isEntryInNode(objarrEntry)){
+        if (!nodeToSearchIn.isEntryInNode(objarrEntry)) {
             System.out.println("Search index: should not happen , every row has index");
             return null;
         }
@@ -121,6 +133,41 @@ public class Octree {
         return strarrColTypes;
     }
 
+    private void saveOctree() {
+        File file = new File(_strPath);
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(this);
+            oos.close();
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadOctree(){
+        File file = new File(_strPath);
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Octree octree = (Octree) ois.readObject();
+            this._nodeRoot = octree.get_nodeRoot();
+            ois.close();
+            fis.close();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void unloadOctree(){
+        saveOctree();
+        _nodeRoot = null;
+    }
+
+    // TODO: add tostring method
+
+    // Getters and Setters
     public Node get_nodeRoot() {
         return _nodeRoot;
     }

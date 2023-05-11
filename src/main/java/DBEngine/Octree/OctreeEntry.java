@@ -1,8 +1,9 @@
 package DBEngine.Octree;
 
 import java.util.Vector;
+import java.io.Serializable;
 
-public class OctreeEntry {
+public class OctreeEntry implements Serializable{
 
     private Vector<Object> _objVectorEntryPk;
     private Object[] _objarrEntryValues;

@@ -5,8 +5,9 @@ import DBEngine.DBApp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Vector;
+import java.io.Serializable;
 
-public class Node {
+public class Node implements Serializable {
     private Vector<OctreeEntry> _octreeEntryEntries;
     private Node[] _nodearrChildren;
     private Node _nodeParent;
@@ -279,6 +280,8 @@ public class Node {
         return _intEntriesCount == 0;
     }
 
+
+    // TODO: add tostring method
 
     // Getters and setters
 
