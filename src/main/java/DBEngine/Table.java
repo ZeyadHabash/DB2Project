@@ -107,6 +107,22 @@ public class Table implements Serializable {
         page.unloadPage();
     }
 
+    public void addAndPopulateIndex(Octree index) throws DBAppException {
+        // add index
+        _indices.add(index.get_strIndexName());
+
+        // populate index
+        for(String pageID : _pagesID){
+            Page page = Page.loadPage(pageID, _strPath, _strTableName);
+            for(Hashtable<String, Object> row : page.get_rows()){
+                Object[] objarrEntryValues = getEntryValuesFromRow(row, index);
+                index.insertRow(objarrEntryValues, page.get_strPageID(), row.get(_strClusteringKeyColumn));
+            }
+            page.unloadPage();
+        }
+        index.unloadOctree();
+    }
+
     public void splitPage(Page currPage, int intCurrPageIndex) throws DBAppException { // splits page if it is full
         int lastRowIDinPage = currPage.get_rows().size() - 1; // get the id of the last row in the page
         Hashtable<String, Object> lastRow = currPage.get_rows().get(lastRowIDinPage); // get the last row in the page
@@ -186,7 +202,7 @@ public class Table implements Serializable {
     private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
-            Object[] objarrEntryValues = getEntryValuesFromRow(htblNewRow);
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblNewRow, index);
             index.insertRow(objarrEntryValues, page.get_strPageID(), htblNewRow.get(_strClusteringKeyColumn));
             index.unloadOctree();
         }
@@ -195,7 +211,7 @@ public class Table implements Serializable {
     private void updatePageInIndex(Page newPage, Hashtable<String, Object> htblRow) {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
-            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow);
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow, index);
             index.updateEntryPage(objarrEntryValues, htblRow.get(_strClusteringKeyColumn), newPage.get_strPageID());
             index.unloadOctree();
         }
@@ -204,14 +220,14 @@ public class Table implements Serializable {
     private void deleteRowFromIndex(Hashtable<String, Object> htblRow) {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
-            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow);
+            Object[] objarrEntryValues = getEntryValuesFromRow(htblRow, index);
             index.deleteRow(objarrEntryValues, htblRow.get(_strClusteringKeyColumn));
             index.unloadOctree();
         }
     }
 
-    private Object[] getEntryValuesFromRow(Hashtable<String, Object> htblRow) {
-        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+    private Object[] getEntryValuesFromRow(Hashtable<String, Object> htblRow, Octree index) {
+        Set<Entry<String, String>> entrySet = index.get_htblColNameType().entrySet();
         Object[] objarrEntryValues = new Object[3];
         int i = 0;
         for (Entry<String, String> entry : entrySet) {

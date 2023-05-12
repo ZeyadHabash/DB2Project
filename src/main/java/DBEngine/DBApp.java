@@ -1,7 +1,10 @@
 package DBEngine;
 
+import DBEngine.Octree.Octree;
 import Exceptions.DBAppException;
+import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+import com.opencsv.exceptions.CsvException;
 
 import java.io.*;
 import java.text.ParseException;
@@ -21,6 +24,47 @@ public class DBApp {
 
     public static void main(String[] args) throws DBAppException {
 
+    }
+
+    private static void detectNulls(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
+        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
+        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
+        if (htblColNameValue.size() == colsize) //all columns are instantiated
+            return;
+
+        for (Entry<String, String> entry : entrySet) {
+            String columnNameOriginal = entry.getKey(); //column name from table
+            if (!htblColNameValue.containsKey(columnNameOriginal)) {  //if the column does not exist in the hashtable
+                throw new DBAppException("Cannot insert row with null value in column " + columnNameOriginal);
+//                if (columnNameOriginal.equals(table.get_strClusteringKeyColumn()))
+//                    throw new DBAppException("Cannot insert row with primary key null");
+//                String columnType = entry.getValue();
+//                htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
+            }
+        }
+    }
+
+    public static void updateCSV(File fileToUpdate, String replaceCol1, String replaceCol2,
+                                 int[] rows, int col1, int col2) throws IOException, CsvException {
+
+
+        // Read existing file
+        CSVReader reader = new CSVReader(new FileReader(fileToUpdate));
+        List<String[]> csvBody = reader.readAll();
+        // get CSV row column  and replace with by using row and column
+        for (int row : rows) {
+            csvBody.get(row)[col1] = replaceCol1;
+            csvBody.get(row)[col2] = replaceCol2;
+        }
+//        csvBody.get(row)[col] = replace;
+        reader.close();
+
+        // Write to CSV file which is open
+        CSVWriter writer = new CSVWriter(new FileWriter(fileToUpdate), CSVWriter.DEFAULT_SEPARATOR,
+                CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END);
+        writer.writeAll(csvBody);
+        writer.flush();
+        writer.close();
     }
 
     public void init() {
@@ -174,17 +218,92 @@ public class DBApp {
         }
     }
 
+    // Helper methods
+
     // following method creates an octree
     // depending on the count of column names passed.
     // If three column names are passed, create an octree.
     // If only one or two column names is passed, throw an Exception.
-    public void createIndex(String strTableName, String strarrColName) throws DBAppException {
+    public void createIndex(String strTableName, String[] strarrColName) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, create a new index
         // Create a new index object
         // Add the index to the table
         // Save the table
+
+        if (strTableName == null)
+            throw new DBAppException("Table name is null");
+        if (strarrColName == null)
+            throw new DBAppException("Column name is null");
+        if (strarrColName.length < 3)
+            throw new DBAppException("Not enough columns to create an octree");
+
+        //write to csv after creating the index
+        Table tableToCreateIndexOn = getTableFromName(strTableName); // get reference to table
+        tableToCreateIndexOn.loadTable(); // load the table into memory
+
+        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+
+        int[] rows = new int[strarrColName.length];
+
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(metadataFile)); // read csv file
+            String line = br.readLine();
+            int currentRowInCSV = 0;
+            int rowsFound = 0;
+            while (line != null) { // loop over all lines
+                String[] values = line.split(",");
+                if (values[0].equals(strTableName)) {
+                    boolean alreadyIndexed = false;
+                    for (int i = 0; i < strarrColName.length; i++) {
+                        if (values[1].equals(strarrColName[i])) {
+                            alreadyIndexed = true;
+                            if (values[4].equals("null")) {
+                                alreadyIndexed = false;
+                                htblColNameType.put(values[1], values[2]);
+                                rows[rowsFound] = currentRowInCSV;
+                                rowsFound++;
+                            }
+                            break; // if column name is found, break out of loop
+                        }
+                    }
+                    if (alreadyIndexed)
+                        throw new DBAppException("Column name not found or already indexed");
+                }
+
+                if (htblColNameType.size() == strarrColName.length) // if all columns are found
+                    break; // break out of loop
+
+                line = br.readLine();
+                currentRowInCSV++;
+            }
+            br.close();
+        } catch (IOException e) {
+            throw new DBAppException("Error reading metadata file");
+        }
+
+        String strIndexName = "";
+        for (int i = 0; i < strarrColName.length; i++) {
+            strIndexName += strarrColName[i];
+        }
+        strIndexName += "Index";
+
+        // create index
+        Octree index = new Octree(tableToCreateIndexOn, htblColNameType, strIndexName);
+
+        // add index to table
+        tableToCreateIndexOn.addAndPopulateIndex(index);
+
+        // edit csv
+        try {
+            updateCSV(metadataFile, strIndexName, "Octree", rows, 4, 5);
+        } catch (IOException | CsvException e) {
+            throw new DBAppException("Error writing to metadata file");
+        }
+
+        // save and unload table
+        tableToCreateIndexOn.unloadTable();
     }
 
     // following method inserts one row only.
@@ -212,7 +331,7 @@ public class DBApp {
         tableToInsertInto.loadTable(); // load the table into memory
 
         htblColNameValue = castToLowerCase(htblColNameValue, tableToInsertInto);
-        wrapNull(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
+        detectNulls(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
 
         // verify that the input row violates no constraints
         verifyRow(tableToInsertInto, htblColNameValue);
@@ -227,8 +346,6 @@ public class DBApp {
 
         tableToInsertInto.unloadTable(); // unload the table
     }
-
-    // Helper methods
 
     // following method updates one row only
     // htblColNameValue holds the key and new value
@@ -474,23 +591,6 @@ public class DBApp {
             }
         }
         return null;
-    }
-
-    private static void wrapNull(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
-        Set<Entry<String, String>> entrySet = ((table.get_htblColNameType())).entrySet();
-        int colsize = table.get_htblColNameType().size();  // are we sure never returns null?
-        if (htblColNameValue.size() == colsize) //all columns are instantiated
-            return;
-
-        for (Entry<String, String> entry : entrySet) {
-            String columnNameOriginal = entry.getKey(); //column name from table
-            if (!htblColNameValue.containsKey(columnNameOriginal)) //if the column does not exist in the hashtable
-                if (columnNameOriginal.equals(table.get_strClusteringKeyColumn()))
-                    throw new DBAppException("Cannot insert row with primary key null");
-            String columnType = entry.getValue();
-            htblColNameValue.put(columnNameOriginal, new NullObject()); //wrap the null value
-        }
-
     }
 
     private Hashtable<String, Object> castToLowerCase(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {

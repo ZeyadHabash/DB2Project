@@ -21,7 +21,7 @@ public class Octree implements Serializable {
         _strIndexName = strIndexName;
         _nodeRoot = new Node(getMinValues(), getMaxValues(), getColTypes());
 
-        _strPath = table.get_strPath() + "_" + _strIndexName + "_index.ser";
+        _strPath = table.get_strPath() + "_" + _strIndexName + ".ser";
         saveOctree();
     }
 
@@ -29,7 +29,7 @@ public class Octree implements Serializable {
         _table = table;
         _strIndexName = strIndexName;
 
-        _strPath = table.get_strPath() + "_" + _strIndexName + "_index.ser";
+        _strPath = table.get_strPath() + "_" + _strIndexName + ".ser";
     }
 
     public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) {
@@ -195,5 +195,13 @@ public class Octree implements Serializable {
 
     public Hashtable<String, String> get_htblColNameType() {
         return _htblColNameType;
+    }
+
+    public String get_strPath() {
+        return _strPath;
+    }
+
+    public String get_strIndexName() {
+        return _strIndexName;
     }
 }
