@@ -1,6 +1,7 @@
 package DBEngine;
 
 import DBEngine.Octree.Octree;
+import DBEngine.Octree.OctreeEntry;
 import Exceptions.DBAppException;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
@@ -453,7 +454,7 @@ public class DBApp {
                         j--; // decrement i to account for the deleted row
                     }
                 }
-                if (tableToDeleteFrom.get_pagesID().get(i) != currPageID) // if the page was deleted, decrement i to account for the deleted page
+                if (!Objects.equals(tableToDeleteFrom.get_pagesID().get(i), currPageID)) // if the page was deleted, decrement i to account for the deleted page
                     i--;
                 currPage.unloadPage();
             }
@@ -469,8 +470,161 @@ public class DBApp {
         // Add the record to the table
         // Save the table
         // Return the iterator
-        return null;
+
+        if (arrSQLTerms == null)
+            throw new DBAppException("SQLTerms is null");
+        if (strarrOperators == null)
+            throw new DBAppException("Operators is null");
+        if (arrSQLTerms.length == 0)
+            throw new DBAppException("SQLTerms is empty");
+        if (strarrOperators.length != arrSQLTerms.length - 1)
+            throw new DBAppException("Operator amount doesn't match SQLTerm amount");
+
+        // verify that the operators are valid
+        for (String operator : strarrOperators) {
+            if (operator != "AND" && operator != "OR" && operator != "XOR")
+                throw new DBAppException("Invalid operator");
+        }
+        // verify that the SQLTerms are valid
+        verifySQLTerm(arrSQLTerms);
+
+        // get the table
+        Table tableToSelectFrom = getTableFromName(arrSQLTerms[0]._strTableName);
+
+        // load the table
+        tableToSelectFrom.loadTable();
+
+        // loop over SQLTerms and find 3 ANDed terms that are indexed
+        // if found, use the index to find the rows
+        Vector<Hashtable<String, Object>> rows = getSelectRows(arrSQLTerms, strarrOperators, tableToSelectFrom);
+        Iterator result = rows.iterator();
+        tableToSelectFrom.unloadTable();
+        return result;
     }
+
+
+    private void verifySQLTerm(SQLTerm[] arrSQLTerms) throws DBAppException {
+        for (SQLTerm sqlTerm : arrSQLTerms) {
+
+            // verify that none of the SQLTerm fields are null
+            if (sqlTerm._strTableName == null)
+                throw new DBAppException("Table name is null");
+            if (sqlTerm._strColumnName == null)
+                throw new DBAppException("Column name is null");
+            if (sqlTerm._objValue == null)
+                throw new DBAppException("Value is null");
+            if (sqlTerm._strOperator == null)
+                throw new DBAppException("Operator is null");
+
+            // verify that the operator is valid
+            if (sqlTerm._strOperator != "=" && sqlTerm._strOperator != "<" && sqlTerm._strOperator != ">"
+                    && sqlTerm._strOperator != "<=" && sqlTerm._strOperator != ">=" && sqlTerm._strOperator != "!=")
+                throw new DBAppException("Invalid operator");
+
+            // verify that the table exists
+            Table table = getTableFromName(sqlTerm._strTableName);
+
+            // verify that the column exists
+            if (!table.get_htblColNameType().containsKey(sqlTerm._strColumnName))
+                throw new DBAppException("Column name not found");
+
+            // verify that the value is of the correct type
+            String columnType = table.get_htblColNameType().get(sqlTerm._strColumnName);
+            String valueType = sqlTerm._objValue.getClass().getName();
+            if (!columnType.equals(valueType))
+                throw new DBAppException("Value type doesn't match column type");
+        }
+    }
+
+
+    private Vector<Hashtable<String, Object>> getSelectRows(SQLTerm[] arrSQLTerms, String[] strarrOperators, Table table) throws DBAppException {
+        // loop over SQLTerms and find 3 ANDed terms that are indexed
+        // if found, use the index to find the rows
+
+        Vector<Vector<Hashtable<String, Object>>> currentSetOfRows = new Vector<Vector<Hashtable<String, Object>>>();
+
+        Vector<String> operators = new Vector<String>();
+
+        for (int i = 0; i < strarrOperators.length; i++) {
+            if (strarrOperators[i].equals("AND")) {
+                if (i != strarrOperators.length - 1 && strarrOperators[i + 1].equals("AND")) {
+                    String[] strarrColumns = {arrSQLTerms[i]._strColumnName, arrSQLTerms[i + 1]._strColumnName, arrSQLTerms[i + 2]._strColumnName};
+                    Octree index = table.getIndexOnRows(strarrColumns);
+                    if (index == null) {
+                        // no index found so and 3ady
+                        currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
+                        operators.add(strarrOperators[i]);
+                        continue;
+                    } else {
+                        Vector<Hashtable<String, Object>> listOfIndexedRows = new Vector<Hashtable<String, Object>>();
+                        // use the index to find the rows
+                        Vector<OctreeEntry> entriesFromIndex = index.getRowsFromCondition(new SQLTerm[]{arrSQLTerms[i],
+                                arrSQLTerms[i + 1], arrSQLTerms[i + 2]});
+                        for (OctreeEntry entry : entriesFromIndex) {
+                            listOfIndexedRows.addAll(table.getRowsfromEntry(entry));
+                        }
+                        currentSetOfRows.add(listOfIndexedRows);
+                        i += 2; // skip the next 2 terms as they're already indexed
+                        operators.add(strarrOperators[i]);
+                    }
+                } else { // no AND after (including last AND)
+                    currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
+                    operators.add(strarrOperators[i]);
+                }
+            } else { // OR or XOR
+                currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
+                operators.add(strarrOperators[i]);
+            }
+        }
+        currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[arrSQLTerms.length - 1]));
+
+        // now we have all the rows and operators
+        // we need to perform the operations
+        Vector<Hashtable<String, Object>> result = currentSetOfRows.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            result = performOperation(result, currentSetOfRows.get(i + 1), operators.get(i));
+        }
+
+        return result;
+    }
+
+    private Vector<Hashtable<String, Object>> performOperation(Vector<Hashtable<String, Object>> rows1, Vector<Hashtable<String, Object>> rows2, String operator) {
+        Vector<Hashtable<String, Object>> result = new Vector<Hashtable<String, Object>>();
+        if (operator.equals("AND")) {
+            for (Hashtable<String, Object> row1 : rows1) {
+                for (Hashtable<String, Object> row2 : rows2) {
+                    if (row1.equals(row2)) {
+                        if (!result.contains(row1))
+                            result.add(row1);
+                    }
+                }
+            }
+        } else if (operator.equals("OR")) {
+            for (Hashtable<String, Object> row1 : rows1) {
+                if (!result.contains(row1))
+                    result.add(row1);
+            }
+            for (Hashtable<String, Object> row2 : rows2) {
+                if (!result.contains(row2))
+                    result.add(row2);
+            }
+        } else if (operator.equals("XOR")) {
+            for (Hashtable<String, Object> row1 : rows1) {
+                if (!rows2.contains(row1)) {
+                    if (!result.contains(row1))
+                        result.add(row1);
+                }
+            }
+            for (Hashtable<String, Object> row2 : rows2) {
+                if (!rows1.contains(row2)) {
+                    if (!result.contains(row2))
+                        result.add(row2);
+                }
+            }
+        }
+        return result;
+    }
+
 
     private Table getTableFromName(String strTableName) throws DBAppException {
         // Check if the table exists

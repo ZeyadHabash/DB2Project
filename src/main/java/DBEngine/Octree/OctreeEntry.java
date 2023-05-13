@@ -1,9 +1,9 @@
 package DBEngine.Octree;
 
-import java.util.Vector;
 import java.io.Serializable;
+import java.util.Vector;
 
-public class OctreeEntry implements Serializable{
+public class OctreeEntry implements Serializable {
 
     private Vector<Object> _objVectorEntryPk;
     private Object[] _objarrEntryValues;
@@ -32,6 +32,37 @@ public class OctreeEntry implements Serializable{
     public void updatePage(Object objEntryPk, String strNewPageName) {
         int index = _objVectorEntryPk.indexOf(objEntryPk);
         _strVectorPages.set(index, strNewPageName);
+    }
+
+    public boolean conditionFitsEntry(Object[] objarrValues, String[] strarrOperators) {
+        for (int i = 0; i < objarrValues.length; i++) {
+            if (strarrOperators[i].equals("=")) {
+                if (!objarrValues[i].equals(_objarrEntryValues[i])) {
+                    return false;
+                }
+            } else if (strarrOperators[i].equals("!=")) {
+                if (objarrValues[i].equals(_objarrEntryValues[i])) {
+                    return false;
+                }
+            } else if (strarrOperators[i].equals(">")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) <= 0) {
+                    return false;
+                }
+            } else if (strarrOperators[i].equals("<")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) >= 0) {
+                    return false;
+                }
+            } else if (strarrOperators[i].equals(">=")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) < 0) {
+                    return false;
+                }
+            } else if (strarrOperators[i].equals("<=")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) > 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public boolean isEmpty() {

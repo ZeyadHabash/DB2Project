@@ -1,11 +1,13 @@
 package DBEngine.Octree;
 
+import DBEngine.SQLTerm;
 import DBEngine.Table;
 
 import java.io.*;
 import java.util.Hashtable;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Vector;
 
 public class Octree implements Serializable {
 
@@ -93,6 +95,54 @@ public class Octree implements Serializable {
             return null;
         }
         return nodeToSearchIn.getEntry(objarrEntry);
+    }
+
+    public Vector<OctreeEntry> getRowsFromCondition(SQLTerm[] arrSQLTerm) {
+        SQLTerm[] arrSQLTermArranged = arrangeTerms(arrSQLTerm);
+
+        Object[] objarrValues = new Object[arrSQLTermArranged.length];
+        String[] strarrOperators = new String[arrSQLTermArranged.length];
+
+        for (int i = 0; i < arrSQLTermArranged.length; i++) {
+            objarrValues[i] = arrSQLTermArranged[i]._objValue;
+            strarrOperators[i] = arrSQLTermArranged[i]._strOperator;
+        }
+
+        return _nodeRoot.getRowsFromCondition(objarrValues, strarrOperators);
+    }
+
+    private SQLTerm[] arrangeTerms(SQLTerm[] arrSQLTerm) {
+        SQLTerm[] arrSQLTermArranged = new SQLTerm[arrSQLTerm.length];
+        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+        int currentColumn = 0;
+        for (Entry<String, String> entry : entrySet) {
+            String strColName = entry.getKey();
+            for (int i = 0; i < arrSQLTerm.length; i++) {
+                if (arrSQLTerm[i]._strColumnName.equals(strColName)) {
+                    arrSQLTermArranged[currentColumn] = arrSQLTerm[i];
+                    currentColumn++;
+                    break;
+                }
+            }
+        }
+        return arrSQLTermArranged;
+    }
+
+    public boolean isIndexOn(String[] strarrColNames) {
+        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+        for (Entry<String, String> entry : entrySet) {
+            String strColName = entry.getKey();
+            boolean bFound = false;
+            for (String strColNameToCheck : strarrColNames) {
+                if (strColName.equals(strColNameToCheck)) {
+                    bFound = true;
+                    break;
+                }
+            }
+            if (!bFound)
+                return false;
+        }
+        return true;
     }
 
     public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {

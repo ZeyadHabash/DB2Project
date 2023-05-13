@@ -1,11 +1,12 @@
 package DBEngine.Octree;
 
 import DBEngine.DBApp;
+import DBEngine.SQLTerm;
 
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Vector;
-import java.io.Serializable;
 
 public class Node implements Serializable {
     private Vector<OctreeEntry> _octreeEntryEntries;
@@ -89,7 +90,7 @@ public class Node implements Serializable {
         _intEntriesCount--;
     }
 
-    public OctreeEntry getEntry(Object[] objarrEntry){
+    public OctreeEntry getEntry(Object[] objarrEntry) {
         for (OctreeEntry entry : _octreeEntryEntries) {
             if (entry.get_objarrEntryValues().equals(objarrEntry))
                 return entry;
@@ -97,7 +98,40 @@ public class Node implements Serializable {
         return null;
     }
 
-    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName){
+//    public Vector<Node> getRangeFromChildren(Object[] objarrMin, Object[] objarrMax) {
+//        Vector<Node> nodevecRange = new Vector<Node>();
+//        for (Node node : _nodearrChildren) {
+//            if (node.isLeaf()) {
+//                if (node.rangeFits(objarrMin, objarrMax))
+//                    nodevecRange.add(node);
+//            } else {
+//                if (node.rangeFits(objarrMin, objarrMax))
+//                    nodevecRange.addAll(node.getRangeFromChildren(objarrMin, objarrMax));
+//            }
+//        }
+//        return nodevecRange;
+//    }
+
+    public Vector<OctreeEntry> getRowsFromCondition(Object[] objarrValues, String[] strarrOperators){
+        Vector<OctreeEntry> entryvecRange = new Vector<OctreeEntry>();
+        if (nodeInRange(objarrValues, strarrOperators)) {
+            if (isLeaf()) {
+                for (OctreeEntry entry : _octreeEntryEntries) {
+                    if (entry.conditionFitsEntry(objarrValues, strarrOperators))
+                        entryvecRange.add(entry);
+                }
+            } else {
+                for (Node node : _nodearrChildren) {
+                    Vector<OctreeEntry> tempvec = node.getRowsFromCondition(objarrValues, strarrOperators);
+                    entryvecRange.addAll(tempvec);
+                }
+            }
+        }
+        return entryvecRange;
+    }
+
+
+    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {
         OctreeEntry entry = getEntry(objarrEntry);
         entry.updatePage(objEntryPk, strNewPageName);
     }
@@ -127,9 +161,148 @@ public class Node implements Serializable {
     }
 
     public boolean entryFits(Object[] objarrEntry) {
+        if (isRoot()) // if root then definitely fits
+            return true;
+
+        // get index of child in parent
+        int currChildIndex = 0;
+        for (Node child : _nodeParent.get_nodearrChildren()) {
+            if (child.equals(this))
+                break;
+            currChildIndex++;
+        }
+
+        // check if entry fits in node
         for (int i = 0; i < _objarrMinValues.length; i++) {
-            if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) >= 0) {
-                return false;
+            if (i == 0) { // x dimension
+                if (currChildIndex % 2 == 0) { // if child is in left half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in right half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            } else if (i == 1) { // y dimension
+                if (currChildIndex % 4 <= 1) { // if child is in bottom half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in top half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            } else { // z dimension
+                if (currChildIndex < 4) { // if child is in front half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in back half
+                    if (((Comparable) objarrEntry[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrEntry[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public boolean rangeFits(Object[] objarrMin, Object[] objarrMax) {
+        if (isRoot()) // if root then definitely fits
+            return true;
+
+        // get index of child in parent
+        int currChildIndex = 0;
+        for (Node child : _nodeParent.get_nodearrChildren()) {
+            if (child.equals(this))
+                break;
+            currChildIndex++;
+        }
+
+        // check if range fits in node
+        for (int i = 0; i < _objarrMinValues.length; i++) {
+            if (i == 0) { // x dimension
+                if (currChildIndex % 2 == 0) { // if child is in left half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in right half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            } else if (i == 1) { // y dimension
+                if (currChildIndex % 4 <= 1) { // if child is in bottom half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in top half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            } else { // z dimension
+                if (currChildIndex < 4) { // if child is in front half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) >= 0)
+                        return false;
+                } else { // if child is in back half
+                    if (((Comparable) objarrMin[i]).compareTo(_objarrMinValues[i]) < 0 || ((Comparable) objarrMax[i]).compareTo(_objarrMaxValues[i]) > 0)
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public boolean nodeInRange(Object[] objarrValues, String[] strArrOperators) {
+        for (int i = 0; i < _objarrMinValues.length; i++) {
+            if (strArrOperators[i].equals("<")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrMinValues[i]) < 0)
+                    return false;
+            } else if (strArrOperators[i].equals("<=")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrMinValues[i]) < 0 && !valueFits(objarrValues[i], i))
+                    return false;
+            } else if (strArrOperators[i].equals(">")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrMaxValues[i]) > 0)
+                    return false;
+            } else if (strArrOperators[i].equals(">=")) {
+                if (((Comparable) objarrValues[i]).compareTo(_objarrMaxValues[i]) > 0 && !valueFits(objarrValues[i], i))
+                    return false;
+            } else if (strArrOperators[i].equals("=")) {
+                if (!valueFits(objarrValues[i], i))
+                    return false;
+            } else if (strArrOperators[i].equals("!=")) {
+                if (valueFits(objarrValues[i], i))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    //checks value for one dimension , used in search range for "=", "<=", ">=", "!="
+    public boolean valueFits(Object objValue, int dimension) {
+        // get index of child in parent
+        int currChildIndex = 0;
+        for (Node child : _nodeParent.get_nodearrChildren()) {
+            if (child.equals(this))
+                break;
+            currChildIndex++;
+        }
+        if (dimension == 0) { // x dimension
+            if (currChildIndex % 2 == 0) { // if child is in left half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) >= 0)
+                    return false;
+            } else { // if child is in right half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) > 0)
+                    return false;
+            }
+        } else if (dimension == 1) { // y dimension
+            if (currChildIndex % 4 <= 1) { // if child is in bottom half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) >= 0)
+                    return false;
+            } else { // if child is in top half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) > 0)
+                    return false;
+            }
+        } else { // z dimension
+            if (currChildIndex < 4) { // if child is in front half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) >= 0)
+                    return false;
+            } else { // if child is in back half
+                if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) > 0)
+                    return false;
             }
         }
         return true;

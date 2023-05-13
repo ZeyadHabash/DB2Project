@@ -105,6 +105,42 @@ public class Page implements Serializable {
         return low; // return the index where the primary key should be inserted
     }
 
+    public Vector<Hashtable<String, Object>> getRowsFromSQLTerm(SQLTerm sqlTerm){
+        Vector<Hashtable<String, Object>> result = new Vector<Hashtable<String, Object>>();
+        String strColumnName = sqlTerm._strColumnName;
+        Object objValue = sqlTerm._objValue;
+        String strOperator = sqlTerm._strOperator;
+        for (int i = 0; i < _rows.size(); i++) {
+            Hashtable<String, Object> row = _rows.get(i);
+            if (strOperator.equals("=")) {
+                if (row.get(strColumnName).equals(objValue)) {
+                    result.add(row);
+                }
+            } else if (strOperator.equals("!=")) {
+                if (!row.get(strColumnName).equals(objValue)) {
+                    result.add(row);
+                }
+            } else if (strOperator.equals(">")) {
+                if (((Comparable) row.get(strColumnName)).compareTo(objValue) > 0) {
+                    result.add(row);
+                }
+            } else if (strOperator.equals(">=")) {
+                if (((Comparable) row.get(strColumnName)).compareTo(objValue) >= 0) {
+                    result.add(row);
+                }
+            } else if (strOperator.equals("<")) {
+                if (((Comparable) row.get(strColumnName)).compareTo(objValue) < 0) {
+                    result.add(row);
+                }
+            } else if (strOperator.equals("<=")) {
+                if (((Comparable) row.get(strColumnName)).compareTo(objValue) <= 0) {
+                    result.add(row);
+                }
+            }
+        }
+        return result;
+    }
+
     public void savePage() {
         File file = new File(_strPath + _strTableName + _strPageID + ".class");
         try {

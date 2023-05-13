@@ -3,10 +3,10 @@ package DBEngine;
 import Exceptions.DBAppException;
 
 public class SQLTerm {
-    String _strTableName;
-    String _strColumnName;
-    String _strOperator;
-    Object _objValue;
+    public String _strTableName;
+    public String _strColumnName;
+    public String _strOperator;
+    public Object _objValue;
     public SQLTerm(String strTableName, String strColumnName, String strOperator, Object objValue) {
         _strTableName = strTableName;
         _strColumnName = strColumnName;
