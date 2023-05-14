@@ -15,16 +15,94 @@ import java.util.Map.Entry;
 
 public class DBApp {
 
+    public static final String dateFormat = "yyyy-MM-dd";
     public static int intMaxRows;
     public static int intMaxEntriesPerNode;
-    private final String strDataFolderPath = "src/resources/data";
-    private final String dateFormat = "yyyy-MM-dd";
+    private final String strDataFolderPath = "resources/data";
     private Vector<Table> tables;
     private File metadataFile;
 
 
     public static void main(String[] args) throws DBAppException {
+        String strTableName = "Student";
+        DBApp dbApp = new DBApp();
 
+        dbApp.init();
+
+//        Hashtable htblColNameType = new Hashtable();
+//
+//        Hashtable htblColNameMin = new Hashtable();
+//        Hashtable htblColNameMax = new Hashtable();
+//
+//        htblColNameType.put("id", "java.lang.Integer");
+//        htblColNameMin.put("id", "0");
+//        htblColNameMax.put("id", "99999999");
+//
+//        htblColNameType.put("name", "java.lang.String");
+//        htblColNameMin.put("name", "a");
+//        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzz");
+//
+//        htblColNameType.put("gpa", "java.lang.Double");
+//        htblColNameMin.put("gpa", "0.0");
+//        htblColNameMax.put("gpa", "5.0");
+//
+//
+//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+//        dbApp.createIndex(strTableName, new String[]{"gpa", "name", "id"});
+//
+//
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("id", new Integer(2343432));
+//        htblColNameValue.put("name", new String("Ahmed Noor"));
+//        htblColNameValue.put("gpa", new Double(0.95));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(453455));
+//        htblColNameValue.put("name", new String("Ahmed Noor"));
+//        htblColNameValue.put("gpa", new Double(0.95));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(5674567));
+//        htblColNameValue.put("name", new String("Dalia Noor"));
+//        htblColNameValue.put("gpa", new Double(1.25));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(23498));
+//        htblColNameValue.put("name", new String("John Noor"));
+//        htblColNameValue.put("gpa", new Double(1.5));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//        htblColNameValue.clear();
+//        htblColNameValue.put("id", new Integer(78452));
+//        htblColNameValue.put("name", new String("Zaky Noor"));
+//        htblColNameValue.put("gpa", new Double(0.88));
+//        dbApp.insertIntoTable(strTableName, htblColNameValue);
+//
+//        Table table = dbApp.getTableFromName(strTableName);
+//        table.loadTable();
+////        System.out.println(table.get_indices());
+//        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
+////        System.out.println(index);
+//
+
+
+        SQLTerm[] arrSQLTerms;
+        arrSQLTerms = new SQLTerm[3];
+        arrSQLTerms[0] = new SQLTerm("Student", "id", ">=", 78452);
+        arrSQLTerms[1] = new SQLTerm("Student", "name", "=", "Zaky noor");
+        arrSQLTerms[2] = new SQLTerm("Student", "gpa", ">=", 0.88);
+        String[] strarrOperators = new String[2];
+        strarrOperators[0] = "AND";
+        strarrOperators[1] = "AND";
+//        strarrOperators[2] = "AND";
+
+
+        // select * from Student where name = “John Noor” or gpa = 1.5;
+        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms, strarrOperators);
+
+        while (resultSet.hasNext()) {
+            System.out.println(resultSet.next());
+        }
     }
 
     private static void detectNulls(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
@@ -75,20 +153,22 @@ public class DBApp {
             dataFolder.mkdir();
         }
         // go to data folder and create metadata.csv if it doesn't exist
-        metadataFile = new File("src/resources/metadata.csv");
+        metadataFile = new File("resources/metadata.csv");
         if (!metadataFile.exists()) {
             try {
                 metadataFile.createNewFile();
             } catch (Exception e) {
+                e.printStackTrace();
                 System.out.println("Error creating metadata file");
             }
         }
-        // TODO: store min and max values in config file
+
         // get max rows from config file
         Properties prop = new Properties();
         try {
-            prop.load(new FileInputStream("src/resources/DBApp.config"));
+            prop.load(new FileInputStream("resources/DBApp.config"));
             intMaxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinTablePage"));
+            intMaxEntriesPerNode = Integer.parseInt(prop.getProperty("MaximumEntriesinOctreeNode"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -117,6 +197,7 @@ public class DBApp {
             }
             br.close();
         } catch (Exception e) {
+            e.printStackTrace();
             System.out.println("Error reading metadata file");
         }
 
@@ -486,7 +567,7 @@ public class DBApp {
                 throw new DBAppException("Invalid operator");
         }
         // verify that the SQLTerms are valid
-        verifySQLTerm(arrSQLTerms);
+        arrSQLTerms = verifySQLTerm(arrSQLTerms);
 
         // get the table
         Table tableToSelectFrom = getTableFromName(arrSQLTerms[0]._strTableName);
@@ -503,8 +584,12 @@ public class DBApp {
     }
 
 
-    private void verifySQLTerm(SQLTerm[] arrSQLTerms) throws DBAppException {
-        for (SQLTerm sqlTerm : arrSQLTerms) {
+    private SQLTerm[] verifySQLTerm(SQLTerm[] arrSQLTerms) throws DBAppException {
+        SQLTerm[] newSQLTerms = new SQLTerm[arrSQLTerms.length];
+
+        for (int i = 0; i < arrSQLTerms.length; i++) {
+
+            SQLTerm sqlTerm = arrSQLTerms[i];
 
             // verify that none of the SQLTerm fields are null
             if (sqlTerm._strTableName == null)
@@ -523,6 +608,7 @@ public class DBApp {
 
             // verify that the table exists
             Table table = getTableFromName(sqlTerm._strTableName);
+            table.loadTable();
 
             // verify that the column exists
             if (!table.get_htblColNameType().containsKey(sqlTerm._strColumnName))
@@ -533,7 +619,13 @@ public class DBApp {
             String valueType = sqlTerm._objValue.getClass().getName();
             if (!columnType.equals(valueType))
                 throw new DBAppException("Value type doesn't match column type");
+
+            if (arrSQLTerms[i]._objValue instanceof String)
+                newSQLTerms[i] = new SQLTerm(arrSQLTerms[i]._strTableName, arrSQLTerms[i]._strColumnName, arrSQLTerms[i]._strOperator, ((String) arrSQLTerms[i]._objValue).toLowerCase());
+            else
+                newSQLTerms[i] = arrSQLTerms[i];
         }
+        return newSQLTerms;
     }
 
 
@@ -544,6 +636,8 @@ public class DBApp {
         Vector<Vector<Hashtable<String, Object>>> currentSetOfRows = new Vector<Vector<Hashtable<String, Object>>>();
 
         Vector<String> operators = new Vector<String>();
+
+        boolean flag = false;
 
         for (int i = 0; i < strarrOperators.length; i++) {
             if (strarrOperators[i].equals("AND")) {
@@ -565,7 +659,10 @@ public class DBApp {
                         }
                         currentSetOfRows.add(listOfIndexedRows);
                         i += 2; // skip the next 2 terms as they're already indexed
-                        operators.add(strarrOperators[i]);
+                        if (i < strarrOperators.length)
+                            operators.add(strarrOperators[i]);
+                        else
+                            flag = true;
                     }
                 } else { // no AND after (including last AND)
                     currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
@@ -576,7 +673,9 @@ public class DBApp {
                 operators.add(strarrOperators[i]);
             }
         }
-        currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[arrSQLTerms.length - 1]));
+        // if last term wasnt part of index add it
+        if (!flag)
+            currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[arrSQLTerms.length - 1]));
 
         // now we have all the rows and operators
         // we need to perform the operations
@@ -626,7 +725,7 @@ public class DBApp {
     }
 
 
-    private Table getTableFromName(String strTableName) throws DBAppException {
+    public Table getTableFromName(String strTableName) throws DBAppException {
         // Check if the table exists
         // If it doesn't, throw an exception
         // If it does, return the table

@@ -1,27 +1,30 @@
 package DBEngine.Octree;
 
+import DBEngine.DBApp;
 import DBEngine.SQLTerm;
 import DBEngine.Table;
+import Exceptions.DBAppException;
 
 import java.io.*;
-import java.util.Hashtable;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.Vector;
 
 public class Octree implements Serializable {
 
     private Node _nodeRoot;
     private Table _table;
-    private Hashtable<String, String> _htblColNameType;
+    private Map<String, String> _htblColNameType;
     private String _strIndexName;
     private String _strPath;
 
-    public Octree(Table table, Hashtable<String, String> htblColNameType, String strIndexName) {
+    public Octree(Table table, Hashtable<String, String> htblColNameType, String strIndexName) throws DBAppException {
         _table = table;
-        _htblColNameType = htblColNameType;
+        _htblColNameType = arrangeColNameType(htblColNameType); // arrange colnametype in table order
         _strIndexName = strIndexName;
         _nodeRoot = new Node(getMinValues(), getMaxValues(), getColTypes());
+
 
         _strPath = table.get_strPath() + "_" + _strIndexName + ".ser";
         saveOctree();
@@ -34,12 +37,11 @@ public class Octree implements Serializable {
         _strPath = table.get_strPath() + "_" + _strIndexName + ".ser";
     }
 
-    public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) {
+    public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) throws DBAppException {
         Node nodeToInsertIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToInsertIn == null) {
             System.out.println("Insert index: row values out of range");
 
-            //TODO: if null then node not found in octree
             return;
         }
         nodeToInsertIn.addEntry(objarrEntry, strPageName, objEntryPk);
@@ -48,12 +50,10 @@ public class Octree implements Serializable {
     public void deleteEntry(Object[] objarrEntry) {
         Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToDeleteFrom == null) {
-            //TODO: if null then node not found in octree
             System.out.println("Delete index: row values out of range");
             return;
         }
         if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
-            //TODO: if false then entry not found in octree
             System.out.println("should not happen , every row has index");
             return;
         }
@@ -67,12 +67,10 @@ public class Octree implements Serializable {
     public void deleteRow(Object[] objarrEntry, Object objEntryPk) {
         Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToDeleteFrom == null) {
-            //TODO: if null then node not found in octree
             System.out.println("Delete index: row values out of range");
             return;
         }
         if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
-            //TODO: if false then entry not found in octree
             System.out.println("should not happen , every row has index");
             return;
         }
@@ -100,6 +98,7 @@ public class Octree implements Serializable {
     public Vector<OctreeEntry> getRowsFromCondition(SQLTerm[] arrSQLTerm) {
         SQLTerm[] arrSQLTermArranged = arrangeTerms(arrSQLTerm);
 
+
         Object[] objarrValues = new Object[arrSQLTermArranged.length];
         String[] strarrOperators = new String[arrSQLTermArranged.length];
 
@@ -108,7 +107,8 @@ public class Octree implements Serializable {
             strarrOperators[i] = arrSQLTermArranged[i]._strOperator;
         }
 
-        return _nodeRoot.getRowsFromCondition(objarrValues, strarrOperators);
+        Vector<OctreeEntry> entries = _nodeRoot.getRowsFromCondition(objarrValues, strarrOperators);
+        return entries;
     }
 
     private SQLTerm[] arrangeTerms(SQLTerm[] arrSQLTerm) {
@@ -159,31 +159,61 @@ public class Octree implements Serializable {
     }
 
 
-    private Object[] getMinValues() {
+    private Object[] getMinValues() throws DBAppException {
         Object[] objarrMinValues = new Object[3];
         Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
         int i = 0;
-        _table.loadTable();
+//        _table.loadTable();
+
         for (Entry<String, String> entry : entrySet) {
             String strColName = entry.getKey();
-            objarrMinValues[i] = _table.get_htblColNameMin().get(strColName);
+            String strColType = entry.getValue();
+            // type cast each value to its type
+            if (strColType.equals("java.lang.Integer"))
+                objarrMinValues[i] = Integer.parseInt(_table.get_htblColNameMin().get(strColName));
+            else if (strColType.equals("java.lang.Double"))
+                objarrMinValues[i] = Double.parseDouble(_table.get_htblColNameMin().get(strColName));
+            else if (strColType.equals("java.util.Date")) {
+                try {
+                    objarrMinValues[i] = new SimpleDateFormat(DBApp.dateFormat).parse(_table.get_htblColNameMin().get(strColName));
+                } catch (ParseException e) {
+                    throw new DBAppException("Error parsing date");
+                }
+            } else if (strColType.equals("java.lang.String"))
+                objarrMinValues[i] = _table.get_htblColNameMin().get(strColName);
+
             i++;
         }
-        _table.unloadTable();
+//        _table.unloadTable();
         return objarrMinValues;
     }
 
-    private Object[] getMaxValues() {
+    private Object[] getMaxValues() throws DBAppException {
         Object[] objarrMaxValues = new Object[3];
         Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
         int i = 0;
-        _table.loadTable();
+//        _table.loadTable();
         for (Entry<String, String> entry : entrySet) {
             String strColName = entry.getKey();
-            objarrMaxValues[i] = _table.get_htblColNameMax().get(strColName);
+            String strColType = entry.getValue();
+            // type cast each value to its type
+            if (strColType.equals("java.lang.Integer"))
+                objarrMaxValues[i] = Integer.parseInt(_table.get_htblColNameMax().get(strColName));
+            else if (strColType.equals("java.lang.Double"))
+                objarrMaxValues[i] = Double.parseDouble(_table.get_htblColNameMax().get(strColName));
+            else if (strColType.equals("java.util.Date")) {
+                try {
+                    objarrMaxValues[i] = new SimpleDateFormat(DBApp.dateFormat).parse(_table.get_htblColNameMax().get(strColName));
+                } catch (ParseException e) {
+                    throw new DBAppException("Error parsing date");
+                }
+            } else if (strColType.equals("java.lang.String"))
+                objarrMaxValues[i] = _table.get_htblColNameMax().get(strColName);
+
             i++;
+
         }
-        _table.unloadTable();
+//        _table.unloadTable();
         return objarrMaxValues;
     }
 
@@ -196,6 +226,26 @@ public class Octree implements Serializable {
             i++;
         }
         return strarrColTypes;
+    }
+
+    private Map<String, String> arrangeColNameType(Hashtable<String, String> htblColNameTypeIndex) {
+        Map<String, String> newHtblColNameType = new LinkedHashMap<String, String>();
+        Set<Entry<String, String>> tableEntrySet = _table.get_htblColNameType().entrySet();
+        Set<Entry<String, String>> indexEntrySet = htblColNameTypeIndex.entrySet();
+        int newHtbCounter = 0;
+        for (Entry<String, String> entryTable : tableEntrySet) {
+            for (Entry<String, String> entryIndex : indexEntrySet) {
+                if (entryTable.getKey().equals(entryIndex.getKey())) {
+                    newHtblColNameType.put(entryTable.getKey(), entryTable.getValue());
+                    newHtbCounter++;
+                    break;
+                }
+            }
+            if (newHtbCounter == 3) {
+                break;
+            }
+        }
+        return newHtblColNameType;
     }
 
     private void saveOctree() {
@@ -232,7 +282,16 @@ public class Octree implements Serializable {
         _htblColNameType = null;
     }
 
-    // TODO: add tostring method
+    public String toString() {
+        return "Octree{" +
+                ", _table=" + _table.get_strTableName() +
+                ", _htblColNameType=" + _htblColNameType +
+                ", _strPath='" + _strPath + '\'' +
+                ", _strIndexName='" + _strIndexName + '\'' +
+                "_nodeRoot=" + _nodeRoot.toString() +
+                '}';
+    }
+
 
     // Getters and Setters
     public Node get_nodeRoot() {
@@ -243,7 +302,7 @@ public class Octree implements Serializable {
         return _table;
     }
 
-    public Hashtable<String, String> get_htblColNameType() {
+    public Map<String, String> get_htblColNameType() {
         return _htblColNameType;
     }
 

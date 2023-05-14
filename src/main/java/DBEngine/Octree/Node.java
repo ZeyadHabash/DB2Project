@@ -1,10 +1,12 @@
 package DBEngine.Octree;
 
 import DBEngine.DBApp;
-import DBEngine.SQLTerm;
+import Exceptions.DBAppException;
 
 import java.io.Serializable;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Vector;
 
@@ -18,18 +20,20 @@ public class Node implements Serializable {
     private Object[] _objarrMidValues;
     private String[] _strarrColTypes;
 
-    public Node(Object[] objarrMinValues, Object[] objarrMaxValues, String[] strarrColTypes) {
+    public Node(Object[] objarrMinValues, Object[] objarrMaxValues, String[] strarrColTypes) throws DBAppException {
         _objarrMinValues = objarrMinValues;
-        _objarrMaxValues = objarrMinValues;
+        _objarrMaxValues = objarrMaxValues;
         _strarrColTypes = strarrColTypes;
 
         _octreeEntryEntries = new Vector<OctreeEntry>();
         _nodearrChildren = null; // Leaf node by default
         _intEntriesCount = 0;
         _objarrMidValues = getMidValues();
+
+
     }
 
-    public void addEntry(Object[] objarrEntry, String strPageName, Object objEntryPk) {
+    public void addEntry(Object[] objarrEntry, String strPageName, Object objEntryPk) throws DBAppException {
         // if entry already exists then add duplicate
         for (OctreeEntry entry : _octreeEntryEntries) {
             if (entry.get_objarrEntryValues().equals(objarrEntry)) {
@@ -112,13 +116,14 @@ public class Node implements Serializable {
 //        return nodevecRange;
 //    }
 
-    public Vector<OctreeEntry> getRowsFromCondition(Object[] objarrValues, String[] strarrOperators){
+    public Vector<OctreeEntry> getRowsFromCondition(Object[] objarrValues, String[] strarrOperators) {
         Vector<OctreeEntry> entryvecRange = new Vector<OctreeEntry>();
         if (nodeInRange(objarrValues, strarrOperators)) {
             if (isLeaf()) {
                 for (OctreeEntry entry : _octreeEntryEntries) {
-                    if (entry.conditionFitsEntry(objarrValues, strarrOperators))
+                    if (entry.conditionFitsEntry(objarrValues, strarrOperators)) {
                         entryvecRange.add(entry);
+                    }
                 }
             } else {
                 for (Node node : _nodearrChildren) {
@@ -137,6 +142,12 @@ public class Node implements Serializable {
     }
 
     public Node searchChildren(Object[] objarrEntry) {
+        if (isLeaf()){
+            if (entryFits(objarrEntry))
+                return this;
+            else
+                return null;
+        }
         for (Node node : _nodearrChildren) {
             if (node.entryFits(objarrEntry)) {
                 if (node.isLeaf())
@@ -247,6 +258,7 @@ public class Node implements Serializable {
     }
 
     public boolean nodeInRange(Object[] objarrValues, String[] strArrOperators) {
+
         for (int i = 0; i < _objarrMinValues.length; i++) {
             if (strArrOperators[i].equals("<")) {
                 if (((Comparable) objarrValues[i]).compareTo(_objarrMinValues[i]) < 0)
@@ -273,6 +285,13 @@ public class Node implements Serializable {
 
     //checks value for one dimension , used in search range for "=", "<=", ">=", "!="
     public boolean valueFits(Object objValue, int dimension) {
+        if (isRoot()){// if root then definitely fits
+            if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) > 0)
+                return false;
+            else
+                return true;
+        }
+
         // get index of child in parent
         int currChildIndex = 0;
         for (Node child : _nodeParent.get_nodearrChildren()) {
@@ -355,19 +374,25 @@ public class Node implements Serializable {
         return objMaxValues;
     }
 
-    private Object[] getMidValues() {
+    private Object[] getMidValues() throws DBAppException {
         Object[] objMidValues = new Object[_objarrMaxValues.length];
         for (int i = 0; i < objMidValues.length; i++) {
             if (_strarrColTypes[i].equals("java.lang.String")) {
                 objMidValues[i] = getMiddleString(_objarrMaxValues[i].toString(), _objarrMinValues[i].toString());
             } else if (_strarrColTypes[i].equals("java.lang.Integer")) {
-                objMidValues[i] = ((Integer) _objarrMinValues[i] + (Integer) _objarrMaxValues[i]) / 2;
+                objMidValues[i] = (((Integer)_objarrMinValues[i]) + ((Integer) _objarrMaxValues[i])) / 2;
             } else if (_strarrColTypes[i].equals("java.lang.Double")) {
-                objMidValues[i] = ((Double) _objarrMinValues[i] + (Double) _objarrMaxValues[i]) / 2;
+                objMidValues[i] = (((Double) _objarrMinValues[i]) + ((Double) _objarrMaxValues[i])) / 2;
             } else if (_strarrColTypes[i].equals("java.util.Date")) {
-                Date midDate = new Date(((Date) _objarrMinValues[i]).getTime() +
-                        ((Date) _objarrMaxValues[i]).getTime() / 2);
-                objMidValues[i] = new SimpleDateFormat("yyyy-MM-dd").format(midDate);
+                try {
+                    Date min = (Date) _objarrMinValues[i];
+                    Date max = (Date) _objarrMaxValues[i];
+                    Date midDate = new Date(min.getTime() + max.getTime() / 2);
+                    String formattedDate = new SimpleDateFormat(DBApp.dateFormat).format(midDate);
+                    objMidValues[i] = new SimpleDateFormat(DBApp.dateFormat).parse(formattedDate);
+                }catch (ParseException e){
+                    throw new DBAppException("Error parsing date");
+                }
             }
         }
         return objMidValues;
@@ -428,7 +453,6 @@ public class Node implements Serializable {
         String newString = "";
         for (int i = 1; i <= N; i++) {
             newString += (char) (a1[i] + 97);
-            System.out.print((char) (a1[i] + 97));
         }
 
         return newString;
@@ -458,8 +482,26 @@ public class Node implements Serializable {
         return _intEntriesCount == 0;
     }
 
+    public String toString(){
+        String str = "";
+        if (isLeaf()) {
+            str += "Leaf Node: ";
+            for (int i = 0; i < _intEntriesCount; i++) {
+                str += _octreeEntryEntries.get(i).toString() + " | ";
+            }
+        }
+        else {
+            if (isRoot())
+                str += "Root Node: \n";
+            else
+                str += "Internal Node: ";
+            for (int i = 0; i < _nodearrChildren.length; i++) {
+                str += _nodearrChildren[i].toString() + " \n";
+            }
+        }
+        return str;
+    }
 
-    // TODO: add tostring method
 
     // Getters and setters
 

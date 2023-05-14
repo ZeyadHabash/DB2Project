@@ -13,6 +13,10 @@ public class SQLTerm {
         _strOperator = strOperator;
         _objValue = objValue;
     }
+
+    public String toString(){
+        return _strTableName + " " + _strColumnName + " " + _strOperator + " " + _objValue;
+    }
     public String get_strTableName() {
         return _strTableName;
     }

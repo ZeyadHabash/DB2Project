@@ -45,19 +45,19 @@ public class OctreeEntry implements Serializable {
                     return false;
                 }
             } else if (strarrOperators[i].equals(">")) {
-                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) <= 0) {
+                if (((Comparable) _objarrEntryValues[i]).compareTo(objarrValues[i]) <= 0) {
                     return false;
                 }
             } else if (strarrOperators[i].equals("<")) {
-                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) >= 0) {
+                if (((Comparable) _objarrEntryValues[i]).compareTo(objarrValues[i]) >= 0) {
                     return false;
                 }
             } else if (strarrOperators[i].equals(">=")) {
-                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) < 0) {
+                if (((Comparable) _objarrEntryValues[i]).compareTo(objarrValues[i]) < 0) {
                     return false;
                 }
             } else if (strarrOperators[i].equals("<=")) {
-                if (((Comparable) objarrValues[i]).compareTo(_objarrEntryValues[i]) > 0) {
+                if (((Comparable) _objarrEntryValues[i]).compareTo(objarrValues[i]) > 0) {
                     return false;
                 }
             }
@@ -67,6 +67,17 @@ public class OctreeEntry implements Serializable {
 
     public boolean isEmpty() {
         return _objVectorEntryPk.isEmpty();
+    }
+
+    public String toString() {
+        String str = "Entry: \n";
+        for (int i = 0; i < _objVectorEntryPk.size(); i++) {
+            for (int j = 0; j < _objarrEntryValues.length; j++) {
+                str += _objarrEntryValues[j] + " ";
+            }
+            str += _objVectorEntryPk.get(i) + " " + _strVectorPages.get(i) + "\n";
+        }
+        return str;
     }
 
     // Getters and Setters

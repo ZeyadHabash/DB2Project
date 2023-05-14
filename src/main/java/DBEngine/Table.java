@@ -181,7 +181,7 @@ public class Table implements Serializable {
 
     public int getRowIDFromClusteringKey(Page page, Object objClusteringKeyValue) throws DBAppException {
         if (page == null)
-            return -1; // if the page is not found return null ( TODO: use this to create a new page when inserting)
+            return -1;
         int rowId = page.getRowID(objClusteringKeyValue, _strClusteringKeyColumn);
         return rowId;
     }
@@ -224,7 +224,7 @@ public class Table implements Serializable {
         return indices;
     }
 
-    private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) {
+    private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) throws DBAppException {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
             Object[] objarrEntryValues = getEntryValuesFromRow(htblNewRow, index);
