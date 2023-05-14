@@ -84,25 +84,39 @@ public class DBApp {
 //        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
 ////        System.out.println(index);
 //
+//
+//
+//        SQLTerm[] arrSQLTerms;
+//        arrSQLTerms = new SQLTerm[3];
+//        arrSQLTerms[0] = new SQLTerm("Student", "id", ">=", 78452);
+//        arrSQLTerms[1] = new SQLTerm("Student", "name", "=", "Zaky noor");
+//        arrSQLTerms[2] = new SQLTerm("Student", "gpa", ">=", 0.88);
+//        String[] strarrOperators = new String[2];
+//        strarrOperators[0] = "AND";
+//        strarrOperators[1] = "AND";
+////        strarrOperators[2] = "AND";
+//
+//
+//        // select * from Student where name = “John Noor” or gpa = 1.5;
+//        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        while (resultSet.hasNext()) {
+//            System.out.println(resultSet.next());
+//        }
 
+        Hashtable<String, Object> htblColNameValue = new Hashtable<>();
+        htblColNameValue.put("gpa", new Double(1.5));
+        htblColNameValue.put("id", new Integer(23498));
+        htblColNameValue.put("name", new String("john noor"));
+        System.out.println(htblColNameValue);
+        dbApp.deleteFromTable(strTableName, htblColNameValue);
 
-        SQLTerm[] arrSQLTerms;
-        arrSQLTerms = new SQLTerm[3];
-        arrSQLTerms[0] = new SQLTerm("Student", "id", ">=", 78452);
-        arrSQLTerms[1] = new SQLTerm("Student", "name", "=", "Zaky noor");
-        arrSQLTerms[2] = new SQLTerm("Student", "gpa", ">=", 0.88);
-        String[] strarrOperators = new String[2];
-        strarrOperators[0] = "AND";
-        strarrOperators[1] = "AND";
-//        strarrOperators[2] = "AND";
-
-
-        // select * from Student where name = “John Noor” or gpa = 1.5;
-        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms, strarrOperators);
-
-        while (resultSet.hasNext()) {
-            System.out.println(resultSet.next());
-        }
+        Table table = dbApp.getTableFromName(strTableName);
+        table.loadTable();
+        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
+        System.out.println(table);
+        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
+        System.out.println(index);
     }
 
     private static void detectNulls(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
@@ -465,8 +479,25 @@ public class DBApp {
         String clusteringKeyDataType = tableToUpdate.get_htblColNameType().get(tableToUpdate.get_strClusteringKeyColumn());
         Object adjustedClusteringKeyValue = castValue(clusteringKeyDataType, strClusteringKeyValue);
 
-        // update the row
-        tableToUpdate.updateRow(htblColNameValue, adjustedClusteringKeyValue);
+        Page page = null;
+        // check if clustering key is indexed
+        Octree index = tableToUpdate.columnHasIndex(tableToUpdate.get_strClusteringKeyColumn());
+        if (index == null)  // if not indexed
+            page = tableToUpdate.getPageFromClusteringKey(adjustedClusteringKeyValue);
+        else { // if indexed
+            // put the clustering key value in a hashtable
+            Hashtable<String, Object> clusteringKey = new Hashtable<>();
+            clusteringKey.put(tableToUpdate.get_strClusteringKeyColumn(), adjustedClusteringKeyValue);
+
+            Vector<OctreeEntry> entries = index.getRowsFromCondition(clusteringKey);
+            int i = entries.get(0).get_objVectorEntryPk().indexOf(adjustedClusteringKeyValue);
+            String pageID = entries.get(0).get_strVectorPages().get(i);
+            page = Page.loadPage(tableToUpdate.get_strPath(), tableToUpdate.get_strTableName(), pageID);
+
+        }
+
+        tableToUpdate.updateRow(htblColNameValue, adjustedClusteringKeyValue, page); // update the row
+
         tableToUpdate.unloadTable(); // unload the table
     }
 
@@ -508,39 +539,143 @@ public class DBApp {
             throw e; // if the error is anything else, throw it
         }
 
-        if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
-            // if the clustering key is in the hashtable, delete only one row
-            Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
-            Page page = tableToDeleteFrom.getPageFromClusteringKey(clusteringKeyValue); // get the page that contains the row to delete
-            int intRowID = tableToDeleteFrom.getRowIDFromClusteringKey(page, clusteringKeyValue);// find the index of the row to delete using binary search
-            if (intRowID == -1 || page == null) // if the row/page is not found don't delete
-                return;
-            tableToDeleteFrom.deleteRow(page, intRowID); // delete the row at that index
-        } else {
-            // if the clustering key is not in the hashtable, delete all rows that match the other conditions
-            // currently it goes through the rows linearly
-            for (int i = 0; i < tableToDeleteFrom.get_pagesID().size(); i++) {
-                String currPageID = tableToDeleteFrom.get_pagesID().get(i);
-                Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
-                for (int j = 0; j < currPage.get_intNumberOfRows(); j++) { // loop through all rows in the table
-                    boolean toDelete = true; // assume the row should be deleted
-                    for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
-                        if (!currPage.get_rows().get(j).get(entry.getKey()).equals(entry.getValue())) { // check if the row value matches the hashtable value for each column name
-                            toDelete = false; // if not, set toDelete to false and break the loop
-                            break;
+        // find all indexed columns passed in the hashtable
+        Vector<HashMap> indexedUnindexedColumns = getIndexedColumns(htblColNameValue, tableToDeleteFrom);
+        HashMap<Octree, Hashtable<String, Object>> htblIndexColNameValue = indexedUnindexedColumns.get(0);
+        HashMap<String, Object> htblColNameValueUnindexed = indexedUnindexedColumns.get(1);
+
+
+        if (htblIndexColNameValue.isEmpty()) {
+            if (htblColNameValue.containsKey(tableToDeleteFrom.get_strClusteringKeyColumn())) {
+                // if the clustering key is in the hashtable, delete only one row
+                Object clusteringKeyValue = htblColNameValue.get(tableToDeleteFrom.get_strClusteringKeyColumn());
+                Page page = tableToDeleteFrom.getPageFromClusteringKey(clusteringKeyValue); // get the page that contains the row to delete
+                int intRowID = tableToDeleteFrom.getRowIDFromClusteringKey(page, clusteringKeyValue);// find the index of the row to delete using binary search
+                if (intRowID == -1 || page == null) // if the row/page is not found don't delete
+                    return;
+                tableToDeleteFrom.deleteRow(page, intRowID); // delete the row at that index
+            } else {
+                // if the clustering key is not in the hashtable, delete all rows that match the other conditions
+                // currently it goes through the rows linearly
+                for (int i = 0; i < tableToDeleteFrom.get_pagesID().size(); i++) {
+                    String currPageID = tableToDeleteFrom.get_pagesID().get(i);
+                    Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+                    for (int j = 0; j < currPage.get_intNumberOfRows(); j++) { // loop through all rows in the table
+                        boolean toDelete = true; // assume the row should be deleted
+                        for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
+                            if (!currPage.get_rows().get(j).get(entry.getKey()).equals(entry.getValue())) { // check if the row value matches the hashtable value for each column name
+                                toDelete = false; // if not, set toDelete to false and break the loop
+                                break;
+                            }
+                        }
+                        if (toDelete) { // if toDelete is still true after checking all columns
+                            tableToDeleteFrom.deleteRow(currPage, j); // delete the row
+                            j--; // decrement i to account for the deleted row
                         }
                     }
-                    if (toDelete) { // if toDelete is still true after checking all columns
-                        tableToDeleteFrom.deleteRow(currPage, j); // delete the row
-                        j--; // decrement i to account for the deleted row
+                    if (!Objects.equals(tableToDeleteFrom.get_pagesID().get(i), currPageID)) // if the page was deleted, decrement i to account for the deleted page
+                        i--;
+                    currPage.unloadPage();
+                }
+            }
+        } else {
+            Set<Entry<Octree, Hashtable<String, Object>>> indexedColumns = htblIndexColNameValue.entrySet();
+            Vector<OctreeEntry> rowsFromIndices = getRowsFromIndices(indexedColumns);
+            deleteUnindexedIndexedIntersection(rowsFromIndices, htblColNameValueUnindexed, tableToDeleteFrom);
+        }
+        tableToDeleteFrom.unloadTable(); // unload the table
+    }
+
+    private Vector<HashMap> getIndexedColumns(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
+        HashMap<Octree, Hashtable<String, Object>> indexedColumns = new HashMap<Octree, Hashtable<String, Object>>();
+        HashMap<String, Object> unindexedColumns = new HashMap<String, Object>();
+        for (Entry<String, Object> entry : htblColNameValue.entrySet()) {
+            String colName = entry.getKey();
+            Object colValue = entry.getValue();
+            System.out.println("column name:" + colName);
+            Octree index = table.columnHasIndex(colName);
+            System.out.println("index:" + index.get_strIndexName());
+            if (index != null) {
+                boolean found = false;
+                Set<Entry<Octree, Hashtable<String, Object>>> h = indexedColumns.entrySet();
+                for (Entry<Octree, Hashtable<String, Object>> entry1 : h) {
+                    if (entry1.getKey().get_strIndexName().equals(index.get_strIndexName())) {
+                        index = entry1.getKey();
+                        found = true;
+                        break;
                     }
                 }
-                if (!Objects.equals(tableToDeleteFrom.get_pagesID().get(i), currPageID)) // if the page was deleted, decrement i to account for the deleted page
-                    i--;
+                if (found) {
+                    System.out.println("putting in old index");
+                    indexedColumns.get(index).put(colName, colValue);
+                }
+                else {
+                    System.out.println("putting in new index");
+                    indexedColumns.put(index, new Hashtable<String, Object>() {{
+                        put(colName, colValue);
+                    }});
+                }
+            } else {
+                unindexedColumns.put(colName, colValue);
+            }
+        }
+        return new Vector<HashMap>() {{
+            add(indexedColumns);
+            add(unindexedColumns);
+        }};
+    }
+
+    private Vector<OctreeEntry> getRowsFromIndices(Set<Entry<Octree, Hashtable<String, Object>>> indexedColumns) {
+        Vector<OctreeEntry> rowsFromIndices = new Vector<OctreeEntry>();
+        for (Entry<Octree, Hashtable<String, Object>> entry : indexedColumns) {
+            Octree index = entry.getKey();
+            Hashtable<String, Object> colNameValue = entry.getValue();
+            index.loadOctree();
+            if (rowsFromIndices.isEmpty())
+                rowsFromIndices = index.getRowsFromCondition(colNameValue);
+            else {
+                Vector<OctreeEntry> tmpVec = index.getRowsFromCondition(colNameValue);
+                for (int i = 0; i < rowsFromIndices.size(); i++) {
+                    if (!tmpVec.contains(rowsFromIndices.get(i))) {
+                        rowsFromIndices.remove(i);
+                        i--;
+                    }
+                }
+            }
+            index.unloadOctree();
+        }
+        return rowsFromIndices;
+    }
+
+    private void deleteUnindexedIndexedIntersection(Vector<OctreeEntry> rowsFromIndices,
+                                                    HashMap<String, Object> htblColNameValueUnindexed,
+                                                    Table tableToDeleteFrom) throws DBAppException {
+        for (int i = 0; i < rowsFromIndices.size(); i++) {
+            OctreeEntry currEntry = rowsFromIndices.get(i);
+            for (int j = 0; j < currEntry.get_strVectorPages().size(); j++) {
+                int currEntrySize = currEntry.get_strVectorPages().size(); // size before deleting
+                String currPageID = currEntry.get_strVectorPages().get(j);
+                Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+                Object clusteringKey = currEntry.get_objVectorEntryPk().get(j);
+                int intRowID = tableToDeleteFrom.getRowIDFromClusteringKey(currPage, clusteringKey);
+                boolean toDelete = true;
+                for (Entry<String, Object> entry : htblColNameValueUnindexed.entrySet()) {
+                    String colName = entry.getKey();
+                    Object colValue = entry.getValue();
+                    Hashtable<String, Object> row = currPage.get_rows().get(intRowID);
+                    if (!row.get(colName).equals(colValue)) {
+                        toDelete = false;
+                        break;
+                    }
+                }
+                if (toDelete) {
+                    tableToDeleteFrom.deleteRow(currPage, intRowID);
+                    if (currEntrySize != currEntry.get_strVectorPages().size()) // if something was deleted from the entry
+                        j--;
+                }
                 currPage.unloadPage();
             }
         }
-        tableToDeleteFrom.unloadTable(); // unload the table
     }
 
     public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException {
@@ -657,6 +792,7 @@ public class DBApp {
                         for (OctreeEntry entry : entriesFromIndex) {
                             listOfIndexedRows.addAll(table.getRowsfromEntry(entry));
                         }
+                        index.unloadOctree();
                         currentSetOfRows.add(listOfIndexedRows);
                         i += 2; // skip the next 2 terms as they're already indexed
                         if (i < strarrOperators.length)

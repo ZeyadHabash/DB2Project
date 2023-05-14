@@ -71,7 +71,7 @@ public class Octree implements Serializable {
             return;
         }
         if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
-            System.out.println("should not happen , every row has index");
+            System.out.println("Delete index: should not happen , every row has index");
             return;
         }
         nodeToDeleteFrom.removeRow(objarrEntry, objEntryPk);
@@ -111,6 +111,56 @@ public class Octree implements Serializable {
         return entries;
     }
 
+    public Vector<OctreeEntry> getRowsFromCondition(Hashtable<String, Object> htblColNameValue) {
+        System.out.println(htblColNameValue);
+        System.out.println("size: " + htblColNameValue.size());
+        Integer[] dimensions = arrangeDimensions(htblColNameValue);
+        Object[] objarrValues = new Object[dimensions.length];
+
+
+        Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
+
+        int j = 0;
+        for (Entry<String, Object> entry : entrySet) {
+            objarrValues[j] = entry.getValue();
+            j++;
+        }
+
+        for (int i = 0; i < dimensions.length; i++) {
+            System.out.print("Dimension(in octree) " + dimensions[i] + " ");
+        }
+        System.out.println();
+        for (int i = 0; i < objarrValues.length; i++) {
+            System.out.print("Value(in octree) " + objarrValues[i] + " ");
+        }
+        System.out.println();
+
+        return _nodeRoot.getRowsFromCondition(objarrValues, dimensions);
+    }
+
+    private Integer[] arrangeDimensions(Hashtable<String, Object> htblColNameValue) {
+        Integer[] dimensions = new Integer[htblColNameValue.size()];
+
+        Set<Entry<String, Object>> entrySet = htblColNameValue.entrySet();
+        Set<Entry<String, String>> entrySetColType = _htblColNameType.entrySet();
+
+        int i = 0;
+        for (Entry<String, Object> entry : entrySet) {
+            String strColName = entry.getKey();
+            int dimension = 0;
+            for (Entry<String, String> entryColType : entrySetColType) {
+                String strColNameFromTable = entryColType.getKey();
+                if (strColNameFromTable.equals(strColName)) {
+                    dimensions[i] = dimension;
+                    break;
+                }
+                dimension++;
+            }
+            i++;
+        }
+        return dimensions;
+    }
+
     private SQLTerm[] arrangeTerms(SQLTerm[] arrSQLTerm) {
         SQLTerm[] arrSQLTermArranged = new SQLTerm[arrSQLTerm.length];
         Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
@@ -128,6 +178,7 @@ public class Octree implements Serializable {
         return arrSQLTermArranged;
     }
 
+    // multiple columns
     public boolean isIndexOn(String[] strarrColNames) {
         Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
         for (Entry<String, String> entry : entrySet) {
@@ -143,6 +194,17 @@ public class Octree implements Serializable {
                 return false;
         }
         return true;
+    }
+
+    // single column
+    public boolean isIndexOn(String strColName) {
+        Set<Entry<String, String>> entrySet = _htblColNameType.entrySet();
+        for (Entry<String, String> entry : entrySet) {
+            String strColNameInIndex = entry.getKey();
+            if (strColName.equals(strColNameInIndex))
+                return true;
+        }
+        return false;
     }
 
     public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {

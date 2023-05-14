@@ -86,11 +86,9 @@ public class Table implements Serializable {
             page.deletePage();
         }
         _intNumberOfRows--;
-        page.unloadPage();
     }
 
-    public void updateRow(Hashtable<String, Object> htblNewRow, Object objClusteringKeyValue) throws DBAppException {
-        Page page = getPageFromClusteringKey(objClusteringKeyValue);
+    public void updateRow(Hashtable<String, Object> htblNewRow, Object objClusteringKeyValue, Page page) throws DBAppException {
         int intRowID = getRowIDFromClusteringKey(page, objClusteringKeyValue);
 
         // delete row from index
@@ -107,6 +105,8 @@ public class Table implements Serializable {
 
         page.unloadPage();
     }
+
+
 
     public void addAndPopulateIndex(Octree index) throws DBAppException {
         // add index
@@ -213,6 +213,16 @@ public class Table implements Serializable {
         return null;
     }
 
+    public Octree columnHasIndex(String strColName) throws DBAppException {
+        for (String indexName : _indices) {
+            Octree index = new Octree(this, indexName);
+            index.loadOctree();
+            if (index.isIndexOn(strColName))
+                return index;
+//            index.unloadOctree();
+        }
+        return null;
+    }
 
     private Vector<Octree> getIndicesOnTable() {
         Vector<Octree> indices = new Vector<Octree>();
@@ -223,7 +233,6 @@ public class Table implements Serializable {
         }
         return indices;
     }
-
     private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) throws DBAppException {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {

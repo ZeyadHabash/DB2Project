@@ -36,7 +36,7 @@ public class Node implements Serializable {
     public void addEntry(Object[] objarrEntry, String strPageName, Object objEntryPk) throws DBAppException {
         // if entry already exists then add duplicate
         for (OctreeEntry entry : _octreeEntryEntries) {
-            if (entry.get_objarrEntryValues().equals(objarrEntry)) {
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry)) {
                 entry.addDuplicate(strPageName, objEntryPk);
                 return;
             }
@@ -75,7 +75,7 @@ public class Node implements Serializable {
 
     public void removeRow(Object[] objarrEntry, Object objEntryPk) {
         for (OctreeEntry entry : _octreeEntryEntries) {
-            if (entry.get_objarrEntryValues().equals(objarrEntry)) {
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry)) {
                 entry.removeDuplicate(objEntryPk);
                 if (entry.isEmpty()) {
                     _octreeEntryEntries.remove(entry);
@@ -88,7 +88,7 @@ public class Node implements Serializable {
 
     public void removeEntry(Object[] objarrEntry) {
         for (OctreeEntry entry : _octreeEntryEntries) {
-            if (entry.get_objarrEntryValues().equals(objarrEntry))
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry))
                 _octreeEntryEntries.remove(entry);
         }
         _intEntriesCount--;
@@ -96,7 +96,7 @@ public class Node implements Serializable {
 
     public OctreeEntry getEntry(Object[] objarrEntry) {
         for (OctreeEntry entry : _octreeEntryEntries) {
-            if (entry.get_objarrEntryValues().equals(objarrEntry))
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry))
                 return entry;
         }
         return null;
@@ -135,6 +135,40 @@ public class Node implements Serializable {
         return entryvecRange;
     }
 
+    public Vector<OctreeEntry> getRowsFromCondition(Object[] objarrValues, Integer[] intarrDimensions) {
+        Vector<OctreeEntry> entryvecRange = new Vector<OctreeEntry>();
+
+
+        for (int i = 0; i < intarrDimensions.length; i++) {
+            System.out.print("Dimension(in node) " + intarrDimensions[i] + " ");
+        }
+        System.out.println();
+        for (int i = 0; i < objarrValues.length; i++) {
+            System.out.print("Value(in node) " + objarrValues[i] + " ");
+        }
+        System.out.println();
+
+
+        for (int i = 0; i < intarrDimensions.length; i++) {
+            if (valueFits(objarrValues[i], intarrDimensions[i])) {
+                if (isLeaf()) {
+                    for (OctreeEntry entry : _octreeEntryEntries) {
+                        if (entry.conditionFitsEntry(objarrValues, intarrDimensions)) {
+                            System.out.println("entry added: " + entry);
+                            entryvecRange.add(entry);
+                        }
+                    }
+                } else {
+                    for (Node node : _nodearrChildren) {
+                        Vector<OctreeEntry> tempvec = node.getRowsFromCondition(objarrValues, intarrDimensions);
+                        entryvecRange.addAll(tempvec);
+                    }
+                }
+            }
+        }
+        return entryvecRange;
+    }
+
 
     public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {
         OctreeEntry entry = getEntry(objarrEntry);
@@ -142,7 +176,7 @@ public class Node implements Serializable {
     }
 
     public Node searchChildren(Object[] objarrEntry) {
-        if (isLeaf()){
+        if (isLeaf()) {
             if (entryFits(objarrEntry))
                 return this;
             else
@@ -165,7 +199,7 @@ public class Node implements Serializable {
 
     public boolean isEntryInNode(Object[] objarrEntry) {
         for (OctreeEntry entry : _octreeEntryEntries) {
-            if (entry.get_objarrEntryValues().equals(objarrEntry))
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry))
                 return true;
         }
         return false;
@@ -285,7 +319,7 @@ public class Node implements Serializable {
 
     //checks value for one dimension , used in search range for "=", "<=", ">=", "!="
     public boolean valueFits(Object objValue, int dimension) {
-        if (isRoot()){// if root then definitely fits
+        if (isRoot()) {// if root then definitely fits
             if (((Comparable) objValue).compareTo(_objarrMinValues[dimension]) < 0 || ((Comparable) objValue).compareTo(_objarrMaxValues[dimension]) > 0)
                 return false;
             else
@@ -380,7 +414,7 @@ public class Node implements Serializable {
             if (_strarrColTypes[i].equals("java.lang.String")) {
                 objMidValues[i] = getMiddleString(_objarrMaxValues[i].toString(), _objarrMinValues[i].toString());
             } else if (_strarrColTypes[i].equals("java.lang.Integer")) {
-                objMidValues[i] = (((Integer)_objarrMinValues[i]) + ((Integer) _objarrMaxValues[i])) / 2;
+                objMidValues[i] = (((Integer) _objarrMinValues[i]) + ((Integer) _objarrMaxValues[i])) / 2;
             } else if (_strarrColTypes[i].equals("java.lang.Double")) {
                 objMidValues[i] = (((Double) _objarrMinValues[i]) + ((Double) _objarrMaxValues[i])) / 2;
             } else if (_strarrColTypes[i].equals("java.util.Date")) {
@@ -390,7 +424,7 @@ public class Node implements Serializable {
                     Date midDate = new Date(min.getTime() + max.getTime() / 2);
                     String formattedDate = new SimpleDateFormat(DBApp.dateFormat).format(midDate);
                     objMidValues[i] = new SimpleDateFormat(DBApp.dateFormat).parse(formattedDate);
-                }catch (ParseException e){
+                } catch (ParseException e) {
                     throw new DBAppException("Error parsing date");
                 }
             }
@@ -482,15 +516,14 @@ public class Node implements Serializable {
         return _intEntriesCount == 0;
     }
 
-    public String toString(){
+    public String toString() {
         String str = "";
         if (isLeaf()) {
             str += "Leaf Node: ";
             for (int i = 0; i < _intEntriesCount; i++) {
                 str += _octreeEntryEntries.get(i).toString() + " | ";
             }
-        }
-        else {
+        } else {
             if (isRoot())
                 str += "Root Node: \n";
             else
