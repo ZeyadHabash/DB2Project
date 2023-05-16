@@ -74,11 +74,13 @@ public class Node implements Serializable {
     }
 
     public void removeRow(Object[] objarrEntry, Object objEntryPk) {
-        for (OctreeEntry entry : _octreeEntryEntries) {
+        for (int i = 0; i < _intEntriesCount; i++) {
+            OctreeEntry entry = _octreeEntryEntries.get(i);
             if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry)) {
                 entry.removeDuplicate(objEntryPk);
                 if (entry.isEmpty()) {
                     _octreeEntryEntries.remove(entry);
+                    i--;
                     _intEntriesCount--;
                 }
                 return;
@@ -92,6 +94,7 @@ public class Node implements Serializable {
             if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry)) {
                 _octreeEntryEntries.remove(entry);
                 _intEntriesCount--;
+                return;
             }
         }
     }
@@ -139,7 +142,6 @@ public class Node implements Serializable {
 
     public Vector<OctreeEntry> getRowsFromCondition(Object[] objarrValues, Integer[] intarrDimensions) {
         Vector<OctreeEntry> entryvecRange = new Vector<OctreeEntry>();
-
 
 
         for (int i = 0; i < intarrDimensions.length; i++) {
