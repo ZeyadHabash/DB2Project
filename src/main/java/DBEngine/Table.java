@@ -21,6 +21,9 @@ public class Table implements Serializable {
     private int _intNumberOfRows;
     private Vector<String> _indices;
 
+    private Vector<Page> loadedPages;
+    private Vector<Octree> loadedIndices;
+
     public Table(String strTableName, String strClusteringKeyColumn, Hashtable<String, String> htblColNameType, Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax, String strPath) {
         _strTableName = strTableName;
         _strClusteringKeyColumn = strClusteringKeyColumn;
@@ -31,6 +34,9 @@ public class Table implements Serializable {
         _pagesID = new Vector<String>();
         _intNumberOfRows = 0;
         _indices = new Vector<String>();
+
+        loadedPages = new Vector<Page>();
+        loadedIndices = new Vector<Octree>();
         saveTable();
     }
 
@@ -113,7 +119,9 @@ public class Table implements Serializable {
 
         // populate index
         for (String pageID : _pagesID) {
-            Page page = Page.loadPage(_strPath, _strTableName, pageID);
+//            Page page = Page.loadPage(_strPath, _strTableName, pageID);
+            Page page = new Page(pageID, _strPath, _strTableName);
+            page.loadPage(_strPath, _strTableName, pageID);
             for (Hashtable<String, Object> row : page.get_rows()) {
                 Object[] objarrEntryValues = getEntryValuesFromRow(row, index);
                 index.insertRow(objarrEntryValues, page.get_strPageID(), row.get(_strClusteringKeyColumn));
@@ -140,7 +148,9 @@ public class Table implements Serializable {
         } else { // if the page is not the last page in the table
             int intNextPageIndex = intCurrPageIndex + 1; // get the id of the next page
             String nextPageID = _pagesID.get(intNextPageIndex); // get the next page
-            Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+//            Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+            Page nextPage = new Page(nextPageID, _strPath, _strTableName);
+            nextPage.loadPage(_strPath, _strTableName, nextPageID);
             nextPage.addRow(lastRow, 0); // add the last row to the next page as the first row
 
             // insert row into index
@@ -156,7 +166,9 @@ public class Table implements Serializable {
     public Page getPageFromClusteringKey(Object objClusteringKeyValue) throws DBAppException {
         for (int i = 0; i < _pagesID.size(); i++) {
             String pageID = _pagesID.get(i); // get the id of the page
-            Page page = Page.loadPage(_strPath, _strTableName, pageID); // load the page
+//            Page page = Page.loadPage(_strPath, _strTableName, pageID); // load the page
+            Page page = new Page(pageID, _strPath, _strTableName);
+            page.loadPage(_strPath, _strTableName, pageID);
             Object firstRowClusteringKey = page.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the page
             Object lastRowClusteringKey = page.get_rows().get(page.get_rows().size() - 1).get(_strClusteringKeyColumn); // get the clustering key of the last row in the page
             if (((Comparable) firstRowClusteringKey).compareTo(objClusteringKeyValue) >= 0)  // if the clustering key of the first row is greater than or equal to the clustering key of the row to be inserted
@@ -167,7 +179,9 @@ public class Table implements Serializable {
                 if (i == _pagesID.size() - 1)
                     return page;
                 String nextPageID = _pagesID.get(i + 1); // get the next page ID
-                Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+//                Page nextPage = Page.loadPage(_strPath, _strTableName, nextPageID); // load the next page
+                Page nextPage = new Page(nextPageID, _strPath, _strTableName);
+                nextPage.loadPage(_strPath, _strTableName, pageID);
                 Object nextPageFirstRowClusteringKey = nextPage.get_rows().get(0).get(_strClusteringKeyColumn); // get the clustering key of the first row in the next page
                 nextPage.unloadPage();
                 if (((Comparable) nextPageFirstRowClusteringKey).compareTo(objClusteringKeyValue) > 0) // if the clustering key of the first row in the next page is greater than the clustering key of the row to be inserted
@@ -192,13 +206,26 @@ public class Table implements Serializable {
     public Vector<Hashtable<String, Object>> getRowsfromEntry(OctreeEntry entry) throws DBAppException {
         Vector<Hashtable<String, Object>> newRows = new Vector<Hashtable<String, Object>>();
         for (int i = 0; i < entry.get_objVectorEntryPk().size(); i++) {
-            long startTime = System.currentTimeMillis();
-            Page page = Page.loadPage(_strPath, _strTableName, entry.get_strVectorPages().get(i));
-            long endTime = System.currentTimeMillis();
-            System.out.println("Time taken to load page: " + (endTime - startTime));
-            int rowID = page.getRowID(entry.get_objVectorEntryPk().get(i), _strClusteringKeyColumn);
-            Hashtable<String, Object> row = page.get_rows().get(rowID);
-            newRows.add(row);
+//            Page page = Page.loadPage(_strPath, _strTableName, entry.get_strVectorPages().get(i));
+            Page foundLoaded = null;
+            for (Page loadedPage : loadedPages) {
+                if (loadedPage.get_strPageID().equals(entry.get_strVectorPages().get(i))) {
+                    foundLoaded = loadedPage;
+                    break;
+                }
+            }
+            if (foundLoaded == null) {
+                Page page = new Page(entry.get_strVectorPages().get(i), _strPath, _strTableName);
+                page.loadPage(_strPath, _strTableName, entry.get_strVectorPages().get(i));
+                loadedPages.add(page);
+                int rowID = page.getRowID(entry.get_objVectorEntryPk().get(i), _strClusteringKeyColumn);
+                Hashtable<String, Object> row = page.get_rows().get(rowID);
+                newRows.add(row);
+            } else {
+                int rowID = foundLoaded.getRowID(entry.get_objVectorEntryPk().get(i), _strClusteringKeyColumn);
+                Hashtable<String, Object> row = foundLoaded.get_rows().get(rowID);
+                newRows.add(row);
+            }
 //            page.unloadPage();
         }
         return newRows;
@@ -217,10 +244,19 @@ public class Table implements Serializable {
 
     public Octree columnHasIndex(String strColName) throws DBAppException {
         for (String indexName : _indices) {
+            for (Octree loadedIndex : loadedIndices) {
+                if (loadedIndex.get_strIndexName().equals(indexName)) {
+                    if (loadedIndex.isIndexOn(strColName)) {
+                        return loadedIndex;
+                    }
+                }
+            }
             Octree index = new Octree(this, indexName);
             index.loadOctree();
-            if (index.isIndexOn(strColName))
+            loadedIndices.add(index);
+            if (index.isIndexOn(strColName)) {
                 return index;
+            }
 //            index.unloadOctree();
         }
         return null;
@@ -279,7 +315,9 @@ public class Table implements Serializable {
         Vector<Hashtable<String, Object>> rows = new Vector<Hashtable<String, Object>>();
 
         for (String pageID : _pagesID) {
-            Page page = Page.loadPage(_strPath, _strTableName, pageID);
+//            Page page = Page.loadPage(_strPath, _strTableName, pageID);
+            Page page = new Page(pageID, _strPath, _strTableName);
+            page.loadPage(_strPath, _strTableName, pageID);
             Vector<Hashtable<String, Object>> pageRows = page.getRowsFromSQLTerm(sqlTerm);
             rows.addAll(pageRows);
 //            page.unloadPage();
@@ -316,6 +354,9 @@ public class Table implements Serializable {
             _intNumberOfRows = table.get_intNumberOfRows();
             _indices = table.get_indices();
 
+            loadedPages = new Vector<Page>();
+            loadedIndices = new Vector<Octree>();
+
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -342,10 +383,13 @@ public class Table implements Serializable {
         String pages = "";
         for (String pageID : _pagesID) {
             try {
-                Page page = Page.loadPage(_strPath, _strTableName, pageID);
+//                Page page = Page.loadPage(_strPath, _strTableName, pageID);
+                Page page = new Page(pageID, _strPath, _strTableName);
+                page.loadPage(_strPath, _strTableName, pageID);
                 pages += page + "\n";
-                page.unloadPage();
+//                page.unloadPage();
             } catch (DBAppException e) {
+                e.printStackTrace();
             }
         }
         return pages;
@@ -413,5 +457,21 @@ public class Table implements Serializable {
 
     public Vector<String> get_indices() {
         return _indices;
+    }
+
+    public Vector<Page> getLoadedPages() {
+        return loadedPages;
+    }
+
+    public void setLoadedPages(Vector<Page> loadedPages) {
+        this.loadedPages = loadedPages;
+    }
+
+    public Vector<Octree> getLoadedIndices() {
+        return loadedIndices;
+    }
+
+    public void setLoadedIndices(Vector<Octree> loadedIndices) {
+        this.loadedIndices = loadedIndices;
     }
 }

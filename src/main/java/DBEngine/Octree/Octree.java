@@ -27,7 +27,7 @@ public class Octree implements Serializable {
 
 
         _strPath = table.get_strPath() + "_" + _strIndexName + ".ser";
-        saveOctree();
+//        saveOctree();
     }
 
     public Octree(Table table, String strIndexName) {
@@ -96,7 +96,6 @@ public class Octree implements Serializable {
     }
 
     public Vector<OctreeEntry> getRowsFromCondition(SQLTerm[] arrSQLTerm) {
-        long startTime = System.currentTimeMillis();
         SQLTerm[] arrSQLTermArranged = arrangeTerms(arrSQLTerm);
 
 
@@ -109,8 +108,6 @@ public class Octree implements Serializable {
         }
 
         Vector<OctreeEntry> entries = _nodeRoot.getRowsFromCondition(objarrValues, strarrOperators);
-        long endTime = System.currentTimeMillis();
-        System.out.println("getRowsFromCondition time: " + (endTime - startTime) + "ms");
         return entries;
     }
 

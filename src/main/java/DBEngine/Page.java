@@ -13,14 +13,30 @@ public class Page implements Serializable {
     private String _strPath;
     private String _strTableName;
 
+
     public Page(String strPageID, String strPath, String strTableName) {
         _strPageID = strPageID;
         _intNumberOfRows = 0;
         _rows = new Vector<Hashtable<String, Object>>();
         _strPath = strPath;
         _strTableName = strTableName;
-        savePage();
+//        savePage();
     }
+
+//    public static Page loadPage(String _strPath, String _strTableName, String _strPageID) throws DBAppException {
+//        File file = new File(_strPath + _strTableName + _strPageID + ".class");
+//        try {
+//            FileInputStream fis = new FileInputStream(file);
+//            ObjectInputStream ois = new ObjectInputStream(fis);
+//            Page page = (Page) ois.readObject();
+//            ois.close();
+//            fis.close();
+//            return page;
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            throw new DBAppException("Page not found");
+//        }
+//    }
 
     // following method adds a row at the end of the page
     public void addRow(Hashtable<String, Object> htblNewRow) {
@@ -64,7 +80,6 @@ public class Page implements Serializable {
 
     }
 
-
     public int getRowID(Object objClusteringKeyValue, String strClusteringKeyColumn) throws DBAppException { // returns the row with the given clustering key value
         return binarySearch(objClusteringKeyValue, strClusteringKeyColumn);
     }
@@ -105,7 +120,7 @@ public class Page implements Serializable {
         return low; // return the index where the primary key should be inserted
     }
 
-    public Vector<Hashtable<String, Object>> getRowsFromSQLTerm(SQLTerm sqlTerm){
+    public Vector<Hashtable<String, Object>> getRowsFromSQLTerm(SQLTerm sqlTerm) {
         Vector<Hashtable<String, Object>> result = new Vector<Hashtable<String, Object>>();
         String strColumnName = sqlTerm._strColumnName;
         Object objValue = sqlTerm._objValue;
@@ -155,16 +170,26 @@ public class Page implements Serializable {
         }
     }
 
-    public static Page loadPage(String _strPath, String _strTableName, String _strPageID) throws DBAppException {
+    public void loadPage(String _strPath, String _strTableName, String _strPageID) throws DBAppException {
+        if (this._intNumberOfRows != 0) {
+            return;
+        }
+
         File file = new File(_strPath + _strTableName + _strPageID + ".class");
         try {
             FileInputStream fis = new FileInputStream(file);
             ObjectInputStream ois = new ObjectInputStream(fis);
             Page page = (Page) ois.readObject();
+
+            this._strPageID = page.get_strPageID();
+            _intNumberOfRows = page.get_intNumberOfRows();
+            _rows = page.get_rows();
+            this._strPath = page.get_strPath();
+            this._strTableName = page.get_strTableName();
             ois.close();
             fis.close();
-            return page;
-        } catch (Exception e) {
+//            return page;
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             throw new DBAppException("Page not found");
         }

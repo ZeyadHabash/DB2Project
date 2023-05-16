@@ -118,9 +118,6 @@ public class DBApp {
 //        System.out.println(index);
 
 
-
-
-
         // TODO: test select before creating index
         // TODO: add 2 columns to create 2 indices at the same time while having 1 unindexed column
         // TODO: test insert, update, delete and select after prev todo
@@ -157,26 +154,10 @@ public class DBApp {
 //        while (withoutIndex.hasNext()) {
 //            System.out.println(withoutIndex.next());
 //        }
-
-//        dbApp.createIndex("students", new String[]{"first_name", "dob", "gpa"});
-
-        long startTime = System.currentTimeMillis();
-        Iterator withIndex = dbApp.selectFromTable(new SQLTerm[] {
-                new SQLTerm("students", "first_name", "=", "shar"),
-                new SQLTerm("students", "dob", "=", new Date("12/31/1999")),
-                new SQLTerm("students", "gpa", ">", 4.50),
-        }, new String[] {"AND", "AND"});
-        long endTime = System.currentTimeMillis();
-        long elapsedTime = endTime - startTime;
-        System.out.println("Elapsed time with index: " + elapsedTime + " ms");
-
-        while (withIndex.hasNext()) {
-            System.out.println(withIndex.next());
-        }
-
+//
 //        Hashtable<String, Object> newRecord = new Hashtable<>();
 //        for (double i= 4.50; i<= 5.01; i+=0.02){
-//            newRecord.put("id", i*1000 + "");
+//            newRecord.put("id", (int)(i*1000) + "");
 //            newRecord.put("first_name", "shar");
 //            newRecord.put("last_name", "aboelashrar");
 //            newRecord.put("gpa", i);
@@ -184,8 +165,25 @@ public class DBApp {
 //            dbApp.insertIntoTable("students", newRecord);
 //        }
 
+//        dbApp.createIndex("students", new String[]{"first_name", "dob", "gpa"});
+
+        long startTime = System.currentTimeMillis();
+        Iterator withIndex = dbApp.selectFromTable(new SQLTerm[]{
+                new SQLTerm("students", "dob", "<", new Date("12/31/1999")),
+                new SQLTerm("students", "first_name", ">", "mmmac"),
+                new SQLTerm("students", "gpa", ">", 4.50),
+        }, new String[]{"AND", "AND"});
+        long endTime = System.currentTimeMillis();
+        System.out.println("Elapsed time with index: " + (endTime - startTime) + " ms");
+
+        while (withIndex.hasNext()) {
+            System.out.println(withIndex.next());
+        }
+
+
 //        Table table = dbApp.getTableFromName("students");
 //        table.loadTable();
+//        System.out.println(table.toString());
 //        Octree index = table.getIndexOnRows(new String[]{"gpa", "first_name", "dob"});
 //
 //        System.out.println(table);
@@ -333,8 +331,8 @@ public class DBApp {
         Hashtable<String, String> htblColNameMinLower = new Hashtable<String, String>();
         Hashtable<String, String> htblColNameMaxLower = new Hashtable<String, String>();
 
-        Set<Entry<String,String>> entries = htblColNameType.entrySet();
-        for (Entry<String,String> entry : entries) {
+        Set<Entry<String, String>> entries = htblColNameType.entrySet();
+        for (Entry<String, String> entry : entries) {
             String key = entry.getKey();
             htblColNameTypeLower.put(key.toLowerCase(), htblColNameType.get(key));
             if (htblColNameType.get(key).equals("java.lang.String")) {
@@ -614,8 +612,9 @@ public class DBApp {
             Vector<OctreeEntry> entries = index.getRowsFromCondition(clusteringKey);
             int i = entries.get(0).get_objVectorEntryPk().indexOf(adjustedClusteringKeyValue);
             String pageID = entries.get(0).get_strVectorPages().get(i);
-            page = Page.loadPage(tableToUpdate.get_strPath(), tableToUpdate.get_strTableName(), pageID);
-
+//            page = Page.loadPage(tableToUpdate.get_strPath(), tableToUpdate.get_strTableName(), pageID);
+            page = new Page(pageID, tableToUpdate.get_strPath(), tableToUpdate.get_strTableName());
+            page.loadPage(tableToUpdate.get_strPath(), tableToUpdate.get_strTableName(), pageID);
         }
 
         tableToUpdate.updateRow(htblColNameValue, adjustedClusteringKeyValue, page); // update the row
@@ -684,7 +683,9 @@ public class DBApp {
                 // currently it goes through the rows linearly
                 for (int i = 0; i < tableToDeleteFrom.get_pagesID().size(); i++) {
                     String currPageID = tableToDeleteFrom.get_pagesID().get(i);
-                    Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+//                    Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+                    Page currPage = new Page(currPageID, tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName());
+                    currPage.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
                     for (int j = 0; j < currPage.get_intNumberOfRows(); j++) { // loop through all rows in the table
                         boolean toDelete = true; // assume the row should be deleted
                         for (Entry<String, Object> entry : htblColNameValue.entrySet()) { // loop through all entries in the hashtable
@@ -775,7 +776,9 @@ public class DBApp {
             for (int j = 0; j < currEntry.get_strVectorPages().size(); j++) {
                 int currEntrySize = currEntry.get_strVectorPages().size(); // size before deleting
                 String currPageID = currEntry.get_strVectorPages().get(j);
-                Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+//                Page currPage = Page.loadPage(tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName(), currPageID);
+                Page currPage = new Page(currPageID, tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName());
+                currPage.loadPage(currPageID, tableToDeleteFrom.get_strPath(), tableToDeleteFrom.get_strTableName());
                 Object clusteringKey = currEntry.get_objVectorEntryPk().get(j);
                 int intRowID = tableToDeleteFrom.getRowIDFromClusteringKey(currPage, clusteringKey);
                 boolean toDelete = true;
@@ -822,16 +825,14 @@ public class DBApp {
                 throw new DBAppException("Invalid operator");
         }
 
-        // verify that the SQLTerms are valid
-        System.out.println("Before verif: " + Arrays.toString(arrSQLTerms));
-        arrSQLTerms = verifySQLTerm(arrSQLTerms);
-        System.out.println("After verif: " + Arrays.toString(arrSQLTerms));
-
         // get the table
         Table tableToSelectFrom = getTableFromName(arrSQLTerms[0]._strTableName);
 
         // load the table
         tableToSelectFrom.loadTable();
+        // verify that the SQLTerms are valid
+        arrSQLTerms = verifySQLTerm(arrSQLTerms, tableToSelectFrom);
+
 
         // loop over SQLTerms and find 3 ANDed terms that are indexed
         // if found, use the index to find the rows
@@ -842,7 +843,7 @@ public class DBApp {
     }
 
 
-    private SQLTerm[] verifySQLTerm(SQLTerm[] arrSQLTerms) throws DBAppException {
+    private SQLTerm[] verifySQLTerm(SQLTerm[] arrSQLTerms, Table table) throws DBAppException {
         SQLTerm[] newSQLTerms = new SQLTerm[arrSQLTerms.length];
 
         for (int i = 0; i < arrSQLTerms.length; i++) {
@@ -850,29 +851,35 @@ public class DBApp {
             SQLTerm sqlTerm = arrSQLTerms[i];
 
             // verify that none of the SQLTerm fields are null
-            if (sqlTerm._strTableName == null)
+            if (sqlTerm._strTableName == null) {
                 throw new DBAppException("Table name is null");
-            if (sqlTerm._strColumnName == null)
+            }
+            if (sqlTerm._strColumnName == null) {
                 throw new DBAppException("Column name is null");
-            if (sqlTerm._objValue == null)
+            }
+            if (sqlTerm._objValue == null) {
                 throw new DBAppException("Value is null");
-            if (sqlTerm._strOperator == null)
+            }
+            if (sqlTerm._strOperator == null) {
                 throw new DBAppException("Operator is null");
+            }
 
             // verify that the operator is valid
             if (sqlTerm._strOperator != "=" && sqlTerm._strOperator != "<" && sqlTerm._strOperator != ">"
-                    && sqlTerm._strOperator != "<=" && sqlTerm._strOperator != ">=" && sqlTerm._strOperator != "!=")
+                    && sqlTerm._strOperator != "<=" && sqlTerm._strOperator != ">=" && sqlTerm._strOperator != "!=") {
                 throw new DBAppException("Invalid operator");
+            }
+
+            if (!arrSQLTerms[i]._strTableName.equals(table.get_strTableName()))
+                throw new DBAppException("Table name doesn't match");
 
             // cast the table name, column name, and value to lowercase
             arrSQLTerms[i]._strTableName = arrSQLTerms[i]._strTableName.toLowerCase();
             arrSQLTerms[i]._strColumnName = arrSQLTerms[i]._strColumnName.toLowerCase();
-            if (arrSQLTerms[i]._objValue instanceof String)
+            if (arrSQLTerms[i]._objValue instanceof String) {
                 arrSQLTerms[i]._objValue = ((String) arrSQLTerms[i]._objValue).toLowerCase();
+            }
 
-            // verify that the table exists
-            Table table = getTableFromName(sqlTerm._strTableName);
-            table.loadTable();
 
             // verify that the column exists
             if (!table.get_htblColNameType().containsKey(sqlTerm._strColumnName))
@@ -891,65 +898,124 @@ public class DBApp {
 
 
     private Vector<Hashtable<String, Object>> getSelectRows(SQLTerm[] arrSQLTerms, String[] strarrOperators, Table table) throws DBAppException {
-        // loop over SQLTerms and find 3 ANDed terms that are indexed
-        // if found, use the index to find the rows
 
-        Vector<Vector<Hashtable<String, Object>>> currentSetOfRows = new Vector<Vector<Hashtable<String, Object>>>();
+        boolean noIndex = true;
+        boolean allAnds = true;
 
-        Vector<String> operators = new Vector<String>();
-
-        boolean flag = false;
-
-        for (int i = 0; i < strarrOperators.length; i++) {
-            if (strarrOperators[i].equals("AND")) {
-                if (i != strarrOperators.length - 1 && strarrOperators[i + 1].equals("AND")) {
-                    String[] strarrColumns = {arrSQLTerms[i]._strColumnName, arrSQLTerms[i + 1]._strColumnName, arrSQLTerms[i + 2]._strColumnName};
-                    Octree index = table.getIndexOnRows(strarrColumns);
-                    if (index == null) {
-                        // no index found so and 3ady
-                        currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
-                        operators.add(strarrOperators[i]);
-                        continue;
-                    } else {
-                        Vector<Hashtable<String, Object>> listOfIndexedRows = new Vector<Hashtable<String, Object>>();
-                        // use the index to find the rows
-                        Vector<OctreeEntry> entriesFromIndex = index.getRowsFromCondition(new SQLTerm[]{arrSQLTerms[i],
-                                arrSQLTerms[i + 1], arrSQLTerms[i + 2]});
-                        long start = System.currentTimeMillis();
-                        for (OctreeEntry entry : entriesFromIndex) {
-                            listOfIndexedRows.addAll(table.getRowsfromEntry(entry));
-                        }
-                        long end = System.currentTimeMillis();
-                        System.out.println("Time taken to get rows from index: " + (end - start));
-                        index.unloadOctree();
-                        currentSetOfRows.add(listOfIndexedRows);
-                        i += 2; // skip the next 2 terms as they're already indexed
-                        if (i < strarrOperators.length)
-                            operators.add(strarrOperators[i]);
-                        else
-                            flag = true;
-                    }
-                } else { // no AND after (including last AND)
-                    currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
-                    operators.add(strarrOperators[i]);
-                }
-            } else { // OR or XOR
-                currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
-                operators.add(strarrOperators[i]);
+        for (String operator : strarrOperators) {
+            if (!operator.equals("AND")) {
+                allAnds = false;
+                break;
             }
         }
-        // if last term wasnt part of index add it
-        if (!flag)
-            currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[arrSQLTerms.length - 1]));
 
-        // now we have all the rows and operators
-        // we need to perform the operations
-        Vector<Hashtable<String, Object>> result = currentSetOfRows.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            result = performOperation(result, currentSetOfRows.get(i + 1), operators.get(i));
+        Vector<Vector<Hashtable<String, Object>>> currentSetOfRows = new Vector<Vector<Hashtable<String, Object>>>();
+        Vector<Hashtable<String, Object>> result = new Vector<Hashtable<String, Object>>();
+
+        if (allAnds) { // if all ands check for index
+            HashMap<Octree, Vector<SQLTerm>> indexToSQLTerms = new HashMap<Octree, Vector<SQLTerm>>();
+            Octree firstIndex = allANDSelect(arrSQLTerms, table, indexToSQLTerms);
+            if (firstIndex != null) {
+                noIndex = false;
+                Vector<SQLTerm> firstIndexSQLTerms = indexToSQLTerms.get(firstIndex);
+                SQLTerm[] firstIndexSQLTermsArr = new SQLTerm[firstIndexSQLTerms.size()];
+                for (int i = 0; i < firstIndexSQLTerms.size(); i++) {
+                    firstIndexSQLTermsArr[i] = firstIndexSQLTerms.get(i);
+                }
+                Vector<OctreeEntry> firstIndexEntries = firstIndex.getRowsFromCondition(firstIndexSQLTermsArr);
+                Vector<Hashtable<String, Object>> firstIndexRows = new Vector<Hashtable<String, Object>>();
+
+                for (OctreeEntry entry : firstIndexEntries) {
+                    firstIndexRows.addAll(table.getRowsfromEntry(entry));
+                }
+
+                for (Hashtable<String, Object> row : firstIndexRows) {
+                    boolean valid = true;
+                    for (int i = 0; i < arrSQLTerms.length; i++) {
+                        if (!firstIndexSQLTerms.contains(arrSQLTerms[i])) { // if not in first index
+                            if (!checkConditionOnRow(row, arrSQLTerms[i])) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (valid)
+                        result.add(row);
+                }
+            }
+            table.setLoadedPages(new Vector<Page>());
+            table.setLoadedIndices(new Vector<Octree>());
         }
 
+
+        //if not then linear scan
+        if (noIndex) {
+            for (int i = 0; i < arrSQLTerms.length; i++) {
+                currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
+            }
+            result = currentSetOfRows.get(0);
+            for (int j = 0; j < strarrOperators.length - 1; j++) {
+                result = performOperation(result, currentSetOfRows.get(j + 1), strarrOperators[j]);
+            }
+        }
         return result;
+    }
+
+    private Octree allANDSelect(SQLTerm[] arrSQLTerms, Table table, HashMap<Octree, Vector<SQLTerm>> indexToSQLTerms) throws DBAppException {
+        for (int i = 0; i < arrSQLTerms.length; i++) {
+            String colName = arrSQLTerms[i]._strColumnName;
+            Octree index = table.columnHasIndex(colName);
+            if (index != null) {
+                Set<Entry<Octree, Vector<SQLTerm>>> entries = indexToSQLTerms.entrySet();
+                boolean found = false;
+                for (Entry<Octree, Vector<SQLTerm>> entry : entries) {
+                    if (entry.getKey().get_strIndexName().equals(index.get_strIndexName())) {
+                        found = true;
+                        index = entry.getKey();
+                        break;
+                    }
+                }
+                if (found) {
+                    indexToSQLTerms.get(index).add(arrSQLTerms[i]);
+                    if (indexToSQLTerms.get(index).size() == 3) // found the index
+                        return index;
+                } else {
+                    Vector<SQLTerm> sqlTerms = new Vector<SQLTerm>();
+                    sqlTerms.add(arrSQLTerms[i]);
+                    indexToSQLTerms.put(index, sqlTerms);
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean checkConditionOnRow(Hashtable<String, Object> row, SQLTerm sqlTerm) {
+        String colName = sqlTerm._strColumnName;
+        Object value = sqlTerm._objValue;
+        String operator = sqlTerm._strOperator;
+        Object rowValue = row.get(colName);
+        if (rowValue == null)
+            return false;
+        if (operator.equals("=")) {
+            if (rowValue.equals(value))
+                return true;
+        } else if (operator.equals("!=")) {
+            if (!rowValue.equals(value))
+                return true;
+        } else if (operator.equals(">")) {
+            if (((Comparable) rowValue).compareTo(value) > 0)
+                return true;
+        } else if (operator.equals(">=")) {
+            if (((Comparable) rowValue).compareTo(value) >= 0)
+                return true;
+        } else if (operator.equals("<")) {
+            if (((Comparable) rowValue).compareTo(value) < 0)
+                return true;
+        } else if (operator.equals("<=")) {
+            if (((Comparable) rowValue).compareTo(value) <= 0)
+                return true;
+        }
+        return false;
     }
 
     private Vector<Hashtable<String, Object>> performOperation(Vector<Hashtable<String, Object>> rows1, Vector<Hashtable<String, Object>> rows2, String operator) {
