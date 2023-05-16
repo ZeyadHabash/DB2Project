@@ -80,7 +80,7 @@ public class Table implements Serializable {
     }
 
 
-    public void deleteRow(Page page, int intRowID) {
+    public void deleteRow(Page page, int intRowID) throws DBAppException {
         // delete row from index
         Hashtable<String, Object> row = page.get_rows().get(intRowID);
         deleteRowFromIndex(row);
@@ -281,7 +281,7 @@ public class Table implements Serializable {
         }
     }
 
-    private void updatePageInIndex(Page newPage, Hashtable<String, Object> htblRow) {
+    private void updatePageInIndex(Page newPage, Hashtable<String, Object> htblRow) throws DBAppException {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
             Object[] objarrEntryValues = getEntryValuesFromRow(htblRow, index);
@@ -290,7 +290,7 @@ public class Table implements Serializable {
         }
     }
 
-    private void deleteRowFromIndex(Hashtable<String, Object> htblRow) {
+    private void deleteRowFromIndex(Hashtable<String, Object> htblRow) throws DBAppException {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
             Object[] objarrEntryValues = getEntryValuesFromRow(htblRow, index);

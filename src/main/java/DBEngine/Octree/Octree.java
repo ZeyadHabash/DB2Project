@@ -40,22 +40,18 @@ public class Octree implements Serializable {
     public void insertRow(Object[] objarrEntry, String strPageName, Object objEntryPk) throws DBAppException {
         Node nodeToInsertIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToInsertIn == null) {
-            System.out.println("Insert index: row values out of range");
-
-            return;
+            throw new DBAppException("Insert index: row values out of range");
         }
         nodeToInsertIn.addEntry(objarrEntry, strPageName, objEntryPk);
     }
 
-    public void deleteEntry(Object[] objarrEntry) {
+    public void deleteEntry(Object[] objarrEntry) throws DBAppException {
         Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToDeleteFrom == null) {
-            System.out.println("Delete index: row values out of range");
-            return;
+            throw new DBAppException("Delete index: row values out of range");
         }
         if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
-            System.out.println("should not happen , every row has index");
-            return;
+            throw new DBAppException("Delete index: should not happen , every row has index");
         }
         nodeToDeleteFrom.removeEntry(objarrEntry);
         if (nodeToDeleteFrom.isEmpty() && nodeToDeleteFrom != _nodeRoot) {
@@ -64,15 +60,15 @@ public class Octree implements Serializable {
         }
     }
 
-    public void deleteRow(Object[] objarrEntry, Object objEntryPk) {
+    public void deleteRow(Object[] objarrEntry, Object objEntryPk) throws DBAppException {
         Node nodeToDeleteFrom = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToDeleteFrom == null) {
-            System.out.println("Delete index: row values out of range");
-            return;
+            throw new DBAppException("Delete index: row values out of range");
+
         }
         if (!nodeToDeleteFrom.isEntryInNode(objarrEntry)) {
-            System.out.println("Delete index: should not happen , every row has index");
-            return;
+            throw new DBAppException("Delete index: should not happen , every row has index");
+
         }
         nodeToDeleteFrom.removeRow(objarrEntry, objEntryPk);
         if (nodeToDeleteFrom.isEmpty() && nodeToDeleteFrom != _nodeRoot) {
@@ -82,15 +78,14 @@ public class Octree implements Serializable {
     }
 
 
-    public OctreeEntry searchEntry(Object[] objarrEntry) {
+    public OctreeEntry searchEntry(Object[] objarrEntry) throws DBAppException {
         Node nodeToSearchIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToSearchIn == null) {
-            System.out.println("Search index: row values out of range");
-            return null;
+            throw new DBAppException("Search index: row values out of range");
         }
         if (!nodeToSearchIn.isEntryInNode(objarrEntry)) {
-            System.out.println("Search index: should not happen , every row has index");
-            return null;
+            throw new DBAppException("Search index: should not happen , every row has index");
+
         }
         return nodeToSearchIn.getEntry(objarrEntry);
     }
@@ -197,15 +192,13 @@ public class Octree implements Serializable {
         return false;
     }
 
-    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) {
+    public void updateEntryPage(Object[] objarrEntry, Object objEntryPk, String strNewPageName) throws DBAppException {
         Node nodeToUpdateIn = _nodeRoot.searchChildren(objarrEntry);
         if (nodeToUpdateIn == null) {
-            System.out.println("Update Page index: row values out of range");
-            return;
+            throw new DBAppException("Update Page index: row values out of range");
         }
         if (!nodeToUpdateIn.isEntryInNode(objarrEntry)) {
-            System.out.println("Update Page index: should not happen , every row has index");
-            return;
+            throw new DBAppException("Update Page index: should not happen , every row has index");
         }
         nodeToUpdateIn.updateEntryPage(objarrEntry, objEntryPk, strNewPageName);
     }

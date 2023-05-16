@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 
+
 public class DBApp {
 
     public static final String dateFormat = "yyyy-MM-dd";
@@ -24,172 +25,6 @@ public class DBApp {
 
 
     public static void main(String[] args) throws DBAppException {
-        DBApp dbApp = new DBApp();
-
-        dbApp.init();
-
-//        Hashtable htblColNameType = new Hashtable();
-//
-//        Hashtable htblColNameMin = new Hashtable();
-//        Hashtable htblColNameMax = new Hashtable();
-//
-//        htblColNameType.put("id", "java.lang.Integer");
-//        htblColNameMin.put("id", "0");
-//        htblColNameMax.put("id", "99999999");
-//
-//        htblColNameType.put("name", "java.lang.String");
-//        htblColNameMin.put("name", "a");
-//        htblColNameMax.put("name", "zzzzzzzzzzzzzzzzzzzzzzz");
-//
-//        htblColNameType.put("gpa", "java.lang.Double");
-//        htblColNameMin.put("gpa", "0.0");
-//        htblColNameMax.put("gpa", "5.0");
-//
-//
-//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
-//        dbApp.createIndex(strTableName, new String[]{"gpa", "name", "id"});
-//
-//
-//        Hashtable htblColNameValue = new Hashtable();
-//        htblColNameValue.put("id", new Integer(2343432));
-//        htblColNameValue.put("name", new String("Ahmed Noor"));
-//        htblColNameValue.put("gpa", new Double(0.95));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(453455));
-//        htblColNameValue.put("name", new String("Ahmed Noor"));
-//        htblColNameValue.put("gpa", new Double(0.95));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(5674567));
-//        htblColNameValue.put("name", new String("Dalia Noor"));
-//        htblColNameValue.put("gpa", new Double(1.25));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(23498));
-//        htblColNameValue.put("name", new String("John Noor"));
-//        htblColNameValue.put("gpa", new Double(1.5));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//        htblColNameValue.clear();
-//        htblColNameValue.put("id", new Integer(78452));
-//        htblColNameValue.put("name", new String("Zaky Noor"));
-//        htblColNameValue.put("gpa", new Double(0.88));
-//        dbApp.insertIntoTable(strTableName, htblColNameValue);
-//
-//        Table table = dbApp.getTableFromName(strTableName);
-//        table.loadTable();
-////        System.out.println(table.get_indices());
-//        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
-////        System.out.println(index);
-//
-//
-//
-//        SQLTerm[] arrSQLTerms;
-//        arrSQLTerms = new SQLTerm[3];
-//        arrSQLTerms[0] = new SQLTerm("Student", "id", ">=", 78452);
-//        arrSQLTerms[1] = new SQLTerm("Student", "name", "=", "Zaky noor");
-//        arrSQLTerms[2] = new SQLTerm("Student", "gpa", ">=", 0.88);
-//        String[] strarrOperators = new String[2];
-//        strarrOperators[0] = "AND";
-//        strarrOperators[1] = "AND";
-////        strarrOperators[2] = "AND";
-//
-//
-//        // select * from Student where name = “John Noor” or gpa = 1.5;
-//        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms, strarrOperators);
-//
-//        while (resultSet.hasNext()) {
-//            System.out.println(resultSet.next());
-//        }
-
-//        Hashtable<String, Object> htblColNameValue = new Hashtable<>();
-//        htblColNameValue.put("gpa", new Double(1.5));
-//        htblColNameValue.put("id", new Integer(23498));
-//        htblColNameValue.put("name", new String("john noor"));
-//        System.out.println(htblColNameValue);
-//        dbApp.deleteFromTable(strTableName, htblColNameValue);
-//
-//        Table table = dbApp.getTableFromName(strTableName);
-//        table.loadTable();
-//        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
-//        System.out.println(table);
-//        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
-//        System.out.println(index);
-
-
-
-//        Hashtable<String, Object> newRecord = new Hashtable<>();
-//        newRecord.put("id", "99-8600");
-//        newRecord.put("first_name", "shar");
-//        newRecord.put("last_name", "aboelashrar");
-//        newRecord.put("gpa", 4.9);
-//        newRecord.put("dob", new Date("12/31/1999"));
-//
-//        dbApp.insertIntoTable("students", newRecord);
-
-//        dbApp.updateTable("students", "99-8600", new Hashtable<String, Object>() {{
-//            put("first_name", "zzzzza");
-//            put("dob", new Date("12/31/2000"));
-//        }});
-
-
-//        long startTime = System.currentTimeMillis();
-//        Iterator withoutIndex = dbApp.selectFromTable(new SQLTerm[] {
-//                new SQLTerm("students", "last_name", "<", "bzxu"),
-//                new SQLTerm("students", "first_name", ">", "m"),
-//                new SQLTerm("students", "dob", "<=", new Date("9/20/1994")),
-//                new SQLTerm("students", "gpa", "!=", 3.0),
-//                new SQLTerm("students", "id", ">=", "69-5929")
-//        }, new String[] {"AND", "AND", "AND", "AND"});
-//        long endTime = System.currentTimeMillis();
-//        long elapsedTime = endTime - startTime;
-//        System.out.println("Elapsed time without index: " + elapsedTime + " ms");
-//
-//        while (withoutIndex.hasNext()) {
-//            System.out.println(withoutIndex.next());
-//        }
-//
-//        Hashtable<String, Object> newRecord = new Hashtable<>();
-//        for (double i= 4.50; i<= 5.01; i+=0.02){
-//            newRecord.put("id", (int)(i*1000) + "");
-//            newRecord.put("first_name", "shar");
-//            newRecord.put("last_name", "aboelashrar");
-//            newRecord.put("gpa", i);
-//            newRecord.put("dob", new Date("12/31/1999"));
-//            dbApp.insertIntoTable("students", newRecord);
-//        }
-
-//        dbApp.createIndex("students", new String[]{"first_name", "dob", "gpa"});
-
-//        long startTime = System.currentTimeMillis();
-//        Iterator withIndex = dbApp.selectFromTable(new SQLTerm[]{
-//                new SQLTerm("students", "dob", "<", new Date("12/31/1999")),
-//                new SQLTerm("students", "first_name", ">", "mmmac"),
-//                new SQLTerm("students", "gpa", ">", 4.50),
-//                new SQLTerm("students", "id", ">=", "69-5929"),
-//                new SQLTerm("students", "last_name", "<", "fzxu")
-//        }, new String[]{"AND", "OR", "XOR", "AND"});
-//        long endTime = System.currentTimeMillis();
-//        System.out.println("Elapsed time without index: " + (endTime - startTime) + " ms");
-//
-//        while (withIndex.hasNext()) {
-//            System.out.println(withIndex.next());
-//        }
-
-        dbApp.deleteFromTable("students", new Hashtable<String, Object>() {{
-            put("first_name", "shar");
-        }});
-
-//        Table table = dbApp.getTableFromName("students");
-//        table.loadTable();
-//        System.out.println(table.toString());
-//        Octree index = table.getIndexOnRows(new String[]{"gpa", "first_name", "dob"});
-//
-//        System.out.println(table);
-//        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
-//        System.out.println(index);
-
     }
 
     private static void detectNulls(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
@@ -753,8 +588,6 @@ public class DBApp {
         tableToSelectFrom.unloadTable();
         return result;
     }
-
-
 
 
     private SQLTerm[] verifySQLTerm(SQLTerm[] arrSQLTerms, Table table) throws DBAppException {
