@@ -69,20 +69,7 @@ public class OctreeEntry implements Serializable {
     public boolean conditionFitsEntry(Object[] objarrValues, Integer[] intarrDimensions){
 
         for (int i = 0; i < objarrValues.length; i++) {
-            System.out.print("Values: " + objarrValues[i] + " ");
-        }
-
-        System.out.println();
-        for (int i = 0; i < objarrValues.length; i++) {
-            System.out.print("Dimensions: " + intarrDimensions[i] + " ");
-        }
-
-        System.out.println();
-        for (int i = 0; i < objarrValues.length; i++) {
-            System.out.println("Dimensions: " + intarrDimensions[i] );
-            System.out.println("Values: " + _objarrEntryValues[intarrDimensions[i]] + " " + objarrValues[i]);
             if (!_objarrEntryValues[intarrDimensions[i]].equals(objarrValues[i])) {
-                System.out.println("false");
                 return false;
             }
         }

@@ -165,6 +165,7 @@ public class Page implements Serializable {
             fis.close();
             return page;
         } catch (Exception e) {
+            e.printStackTrace();
             throw new DBAppException("Page not found");
         }
     }

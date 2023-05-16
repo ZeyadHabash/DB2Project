@@ -107,14 +107,13 @@ public class Table implements Serializable {
     }
 
 
-
     public void addAndPopulateIndex(Octree index) throws DBAppException {
         // add index
         _indices.add(index.get_strIndexName());
 
         // populate index
         for (String pageID : _pagesID) {
-            Page page = Page.loadPage(pageID, _strPath, _strTableName);
+            Page page = Page.loadPage(_strPath, _strTableName, pageID);
             for (Hashtable<String, Object> row : page.get_rows()) {
                 Object[] objarrEntryValues = getEntryValuesFromRow(row, index);
                 index.insertRow(objarrEntryValues, page.get_strPageID(), row.get(_strClusteringKeyColumn));
@@ -193,11 +192,14 @@ public class Table implements Serializable {
     public Vector<Hashtable<String, Object>> getRowsfromEntry(OctreeEntry entry) throws DBAppException {
         Vector<Hashtable<String, Object>> newRows = new Vector<Hashtable<String, Object>>();
         for (int i = 0; i < entry.get_objVectorEntryPk().size(); i++) {
+            long startTime = System.currentTimeMillis();
             Page page = Page.loadPage(_strPath, _strTableName, entry.get_strVectorPages().get(i));
+            long endTime = System.currentTimeMillis();
+            System.out.println("Time taken to load page: " + (endTime - startTime));
             int rowID = page.getRowID(entry.get_objVectorEntryPk().get(i), _strClusteringKeyColumn);
             Hashtable<String, Object> row = page.get_rows().get(rowID);
             newRows.add(row);
-            page.unloadPage();
+//            page.unloadPage();
         }
         return newRows;
     }
@@ -208,7 +210,7 @@ public class Table implements Serializable {
             index.loadOctree();
             if (index.isIndexOn(strarrColNames))
                 return index;
-            index.unloadOctree();
+//            index.unloadOctree();
         }
         return null;
     }
@@ -233,6 +235,7 @@ public class Table implements Serializable {
         }
         return indices;
     }
+
     private void insertRowInIndex(Page page, Hashtable<String, Object> htblNewRow) throws DBAppException {
         Vector<Octree> indices = getIndicesOnTable();
         for (Octree index : indices) {
@@ -272,14 +275,14 @@ public class Table implements Serializable {
         return objarrEntryValues;
     }
 
-    public Vector<Hashtable<String,Object>> getRowsFromSQLTerm(SQLTerm sqlTerm) throws DBAppException {
-        Vector <Hashtable<String,Object>> rows = new Vector<Hashtable<String,Object>>();
+    public Vector<Hashtable<String, Object>> getRowsFromSQLTerm(SQLTerm sqlTerm) throws DBAppException {
+        Vector<Hashtable<String, Object>> rows = new Vector<Hashtable<String, Object>>();
 
-        for (String pageID : _pagesID){
+        for (String pageID : _pagesID) {
             Page page = Page.loadPage(_strPath, _strTableName, pageID);
-            Vector<Hashtable<String,Object>> pageRows = page.getRowsFromSQLTerm(sqlTerm);
+            Vector<Hashtable<String, Object>> pageRows = page.getRowsFromSQLTerm(sqlTerm);
             rows.addAll(pageRows);
-            page.unloadPage();
+//            page.unloadPage();
         }
         return rows;
     }

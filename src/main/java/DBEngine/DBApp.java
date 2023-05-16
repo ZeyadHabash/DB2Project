@@ -24,7 +24,6 @@ public class DBApp {
 
 
     public static void main(String[] args) throws DBAppException {
-        String strTableName = "Student";
         DBApp dbApp = new DBApp();
 
         dbApp.init();
@@ -104,19 +103,95 @@ public class DBApp {
 //            System.out.println(resultSet.next());
 //        }
 
-        Hashtable<String, Object> htblColNameValue = new Hashtable<>();
-        htblColNameValue.put("gpa", new Double(1.5));
-        htblColNameValue.put("id", new Integer(23498));
-        htblColNameValue.put("name", new String("john noor"));
-        System.out.println(htblColNameValue);
-        dbApp.deleteFromTable(strTableName, htblColNameValue);
+//        Hashtable<String, Object> htblColNameValue = new Hashtable<>();
+//        htblColNameValue.put("gpa", new Double(1.5));
+//        htblColNameValue.put("id", new Integer(23498));
+//        htblColNameValue.put("name", new String("john noor"));
+//        System.out.println(htblColNameValue);
+//        dbApp.deleteFromTable(strTableName, htblColNameValue);
+//
+//        Table table = dbApp.getTableFromName(strTableName);
+//        table.loadTable();
+//        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
+//        System.out.println(table);
+//        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
+//        System.out.println(index);
 
-        Table table = dbApp.getTableFromName(strTableName);
-        table.loadTable();
-        Octree index = table.getIndexOnRows(new String[] {"id", "name", "gpa"});
-        System.out.println(table);
-        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
-        System.out.println(index);
+
+
+
+
+        // TODO: test select before creating index
+        // TODO: add 2 columns to create 2 indices at the same time while having 1 unindexed column
+        // TODO: test insert, update, delete and select after prev todo
+
+        // TODO: check concurrent modification (loops + remove/replace in octree)
+
+//        Hashtable<String, Object> newRecord = new Hashtable<>();
+//        newRecord.put("id", "99-8600");
+//        newRecord.put("first_name", "shar");
+//        newRecord.put("last_name", "aboelashrar");
+//        newRecord.put("gpa", 4.9);
+//        newRecord.put("dob", new Date("12/31/1999"));
+//
+//        dbApp.insertIntoTable("students", newRecord);
+
+//        dbApp.updateTable("students", "99-8600", new Hashtable<String, Object>() {{
+//            put("first_name", "zzzzza");
+//            put("dob", new Date("12/31/2000"));
+//        }});
+
+
+//        long startTime = System.currentTimeMillis();
+//        Iterator withoutIndex = dbApp.selectFromTable(new SQLTerm[] {
+//                new SQLTerm("students", "last_name", "<", "bzxu"),
+//                new SQLTerm("students", "first_name", ">", "m"),
+//                new SQLTerm("students", "dob", "<=", new Date("9/20/1994")),
+//                new SQLTerm("students", "gpa", "!=", 3.0),
+//                new SQLTerm("students", "id", ">=", "69-5929")
+//        }, new String[] {"AND", "AND", "AND", "AND"});
+//        long endTime = System.currentTimeMillis();
+//        long elapsedTime = endTime - startTime;
+//        System.out.println("Elapsed time without index: " + elapsedTime + " ms");
+//
+//        while (withoutIndex.hasNext()) {
+//            System.out.println(withoutIndex.next());
+//        }
+
+//        dbApp.createIndex("students", new String[]{"first_name", "dob", "gpa"});
+
+        long startTime = System.currentTimeMillis();
+        Iterator withIndex = dbApp.selectFromTable(new SQLTerm[] {
+                new SQLTerm("students", "first_name", "=", "shar"),
+                new SQLTerm("students", "dob", "=", new Date("12/31/1999")),
+                new SQLTerm("students", "gpa", ">", 4.50),
+        }, new String[] {"AND", "AND"});
+        long endTime = System.currentTimeMillis();
+        long elapsedTime = endTime - startTime;
+        System.out.println("Elapsed time with index: " + elapsedTime + " ms");
+
+        while (withIndex.hasNext()) {
+            System.out.println(withIndex.next());
+        }
+
+//        Hashtable<String, Object> newRecord = new Hashtable<>();
+//        for (double i= 4.50; i<= 5.01; i+=0.02){
+//            newRecord.put("id", i*1000 + "");
+//            newRecord.put("first_name", "shar");
+//            newRecord.put("last_name", "aboelashrar");
+//            newRecord.put("gpa", i);
+//            newRecord.put("dob", new Date("12/31/1999"));
+//            dbApp.insertIntoTable("students", newRecord);
+//        }
+
+//        Table table = dbApp.getTableFromName("students");
+//        table.loadTable();
+//        Octree index = table.getIndexOnRows(new String[]{"gpa", "first_name", "dob"});
+//
+//        System.out.println(table);
+//        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------");
+//        System.out.println(index);
+
     }
 
     private static void detectNulls(Hashtable<String, Object> htblColNameValue, Table table) throws DBAppException {
@@ -251,6 +326,30 @@ public class DBApp {
             throw new DBAppException("Clustering key column max value not found");
         }
 
+        // cast everything to lowercase
+        strTableName = strTableName.toLowerCase();
+        strClusteringKeyColumn = strClusteringKeyColumn.toLowerCase();
+        Hashtable<String, String> htblColNameTypeLower = new Hashtable<String, String>();
+        Hashtable<String, String> htblColNameMinLower = new Hashtable<String, String>();
+        Hashtable<String, String> htblColNameMaxLower = new Hashtable<String, String>();
+
+        Set<Entry<String,String>> entries = htblColNameType.entrySet();
+        for (Entry<String,String> entry : entries) {
+            String key = entry.getKey();
+            htblColNameTypeLower.put(key.toLowerCase(), htblColNameType.get(key));
+            if (htblColNameType.get(key).equals("java.lang.String")) {
+                htblColNameMinLower.put(key.toLowerCase(), htblColNameMin.get(key).toLowerCase());
+                htblColNameMaxLower.put(key.toLowerCase(), htblColNameMax.get(key).toLowerCase());
+            } else {
+                htblColNameMinLower.put(key.toLowerCase(), htblColNameMin.get(key));
+                htblColNameMaxLower.put(key.toLowerCase(), htblColNameMax.get(key));
+            }
+        }
+        htblColNameType = htblColNameTypeLower;
+        htblColNameMin = htblColNameMinLower;
+        htblColNameMax = htblColNameMaxLower;
+
+
         // verify that table name is unique
         for (Table table : tables) {
             if (table.get_strTableName().equals(strTableName)) throw new DBAppException("Table name already exists");
@@ -294,7 +393,7 @@ public class DBApp {
             // write to metadata file
             CSVWriter writer = new CSVWriter(new FileWriter(metadataFile, true), CSVWriter.DEFAULT_SEPARATOR,
                     CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END); // open csv file
-            entrySet = htblColNameType.entrySet(); // what is ht???
+            entrySet = htblColNameType.entrySet();
             for (Entry<String, String> entry : entrySet) {
                 String columnName = entry.getKey(); // get column name
                 String columnType = entry.getValue(); // get column type
@@ -334,6 +433,20 @@ public class DBApp {
             throw new DBAppException("Column name is null");
         if (strarrColName.length < 3)
             throw new DBAppException("Not enough columns to create an octree");
+
+        // cast everything to lowercase
+        strTableName = strTableName.toLowerCase();
+        for (int i = 0; i < strarrColName.length; i++) {
+            strarrColName[i] = strarrColName[i].toLowerCase();
+        }
+
+        // check if column is duplicated (e.g create index on ("last_name","last_name","id"))
+        for (int i = 0; i < strarrColName.length - 1; i++) {
+            for (int j = i + 1; j < strarrColName.length; j++) {
+                if (strarrColName[i].equals(strarrColName[j]))
+                    throw new DBAppException("Duplicate columns not allowed in index");
+            }
+        }
 
         //write to csv after creating the index
         Table tableToCreateIndexOn = getTableFromName(strTableName); // get reference to table
@@ -423,8 +536,13 @@ public class DBApp {
         if (htblColNameValue == null)
             throw new DBAppException("Row is null");
 
+        // cast everything to lowercase
+        strTableName = strTableName.toLowerCase();
+
+
         Table tableToInsertInto = getTableFromName(strTableName); // get reference to table
         tableToInsertInto.loadTable(); // load the table into memory
+
 
         htblColNameValue = castToLowerCase(htblColNameValue, tableToInsertInto);
         detectNulls(htblColNameValue, tableToInsertInto); //wrap Null method call in case not all attributes are included in the hashtable
@@ -462,6 +580,10 @@ public class DBApp {
             throw new DBAppException("Row is null");
         if (strClusteringKeyValue == null)
             throw new DBAppException("Clustering key is null");
+
+        // cast everything to lowercase
+        strTableName = strTableName.toLowerCase();
+        strClusteringKeyValue = strClusteringKeyValue.toLowerCase();
 
         Table tableToUpdate = getTableFromName(strTableName); // get reference to table
         tableToUpdate.loadTable(); // load the table into memory
@@ -523,6 +645,9 @@ public class DBApp {
             throw new DBAppException("Table name is null");
         if (htblColNameValue == null)
             throw new DBAppException("Row is null");
+
+        // cast everything to lowercase
+        strTableName = strTableName.toLowerCase();
 
         Table tableToDeleteFrom = getTableFromName(strTableName); // get reference to table
         tableToDeleteFrom.loadTable(); // load the table into memory
@@ -592,9 +717,7 @@ public class DBApp {
         for (Entry<String, Object> entry : htblColNameValue.entrySet()) {
             String colName = entry.getKey();
             Object colValue = entry.getValue();
-            System.out.println("column name:" + colName);
             Octree index = table.columnHasIndex(colName);
-            System.out.println("index:" + index.get_strIndexName());
             if (index != null) {
                 boolean found = false;
                 Set<Entry<Octree, Hashtable<String, Object>>> h = indexedColumns.entrySet();
@@ -606,11 +729,8 @@ public class DBApp {
                     }
                 }
                 if (found) {
-                    System.out.println("putting in old index");
                     indexedColumns.get(index).put(colName, colValue);
-                }
-                else {
-                    System.out.println("putting in new index");
+                } else {
                     indexedColumns.put(index, new Hashtable<String, Object>() {{
                         put(colName, colValue);
                     }});
@@ -701,8 +821,11 @@ public class DBApp {
             if (operator != "AND" && operator != "OR" && operator != "XOR")
                 throw new DBAppException("Invalid operator");
         }
+
         // verify that the SQLTerms are valid
+        System.out.println("Before verif: " + Arrays.toString(arrSQLTerms));
         arrSQLTerms = verifySQLTerm(arrSQLTerms);
+        System.out.println("After verif: " + Arrays.toString(arrSQLTerms));
 
         // get the table
         Table tableToSelectFrom = getTableFromName(arrSQLTerms[0]._strTableName);
@@ -741,6 +864,12 @@ public class DBApp {
                     && sqlTerm._strOperator != "<=" && sqlTerm._strOperator != ">=" && sqlTerm._strOperator != "!=")
                 throw new DBAppException("Invalid operator");
 
+            // cast the table name, column name, and value to lowercase
+            arrSQLTerms[i]._strTableName = arrSQLTerms[i]._strTableName.toLowerCase();
+            arrSQLTerms[i]._strColumnName = arrSQLTerms[i]._strColumnName.toLowerCase();
+            if (arrSQLTerms[i]._objValue instanceof String)
+                arrSQLTerms[i]._objValue = ((String) arrSQLTerms[i]._objValue).toLowerCase();
+
             // verify that the table exists
             Table table = getTableFromName(sqlTerm._strTableName);
             table.loadTable();
@@ -755,10 +884,7 @@ public class DBApp {
             if (!columnType.equals(valueType))
                 throw new DBAppException("Value type doesn't match column type");
 
-            if (arrSQLTerms[i]._objValue instanceof String)
-                newSQLTerms[i] = new SQLTerm(arrSQLTerms[i]._strTableName, arrSQLTerms[i]._strColumnName, arrSQLTerms[i]._strOperator, ((String) arrSQLTerms[i]._objValue).toLowerCase());
-            else
-                newSQLTerms[i] = arrSQLTerms[i];
+            newSQLTerms[i] = arrSQLTerms[i];
         }
         return newSQLTerms;
     }
@@ -789,9 +915,12 @@ public class DBApp {
                         // use the index to find the rows
                         Vector<OctreeEntry> entriesFromIndex = index.getRowsFromCondition(new SQLTerm[]{arrSQLTerms[i],
                                 arrSQLTerms[i + 1], arrSQLTerms[i + 2]});
+                        long start = System.currentTimeMillis();
                         for (OctreeEntry entry : entriesFromIndex) {
                             listOfIndexedRows.addAll(table.getRowsfromEntry(entry));
                         }
+                        long end = System.currentTimeMillis();
+                        System.out.println("Time taken to get rows from index: " + (end - start));
                         index.unloadOctree();
                         currentSetOfRows.add(listOfIndexedRows);
                         i += 2; // skip the next 2 terms as they're already indexed
@@ -988,11 +1117,12 @@ public class DBApp {
         for (Entry<String, Object> entry : entrySet) {
             String columnName = entry.getKey();
             Object columnValue = entry.getValue();
+            columnName = columnName.toLowerCase();
             String columnType = table.get_htblColNameType().get(columnName);
 
             // check if column exists in table
             if (columnType == null)
-                throw new DBAppException("Column" + columnName + "does not exist in the table");
+                throw new DBAppException("Column " + columnName + " does not exist in the table");
 
             if (columnType.equals("java.lang.String"))
                 newRow.put(columnName, ((String) columnValue).toLowerCase());

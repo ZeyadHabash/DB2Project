@@ -96,6 +96,7 @@ public class Octree implements Serializable {
     }
 
     public Vector<OctreeEntry> getRowsFromCondition(SQLTerm[] arrSQLTerm) {
+        long startTime = System.currentTimeMillis();
         SQLTerm[] arrSQLTermArranged = arrangeTerms(arrSQLTerm);
 
 
@@ -108,12 +109,12 @@ public class Octree implements Serializable {
         }
 
         Vector<OctreeEntry> entries = _nodeRoot.getRowsFromCondition(objarrValues, strarrOperators);
+        long endTime = System.currentTimeMillis();
+        System.out.println("getRowsFromCondition time: " + (endTime - startTime) + "ms");
         return entries;
     }
 
     public Vector<OctreeEntry> getRowsFromCondition(Hashtable<String, Object> htblColNameValue) {
-        System.out.println(htblColNameValue);
-        System.out.println("size: " + htblColNameValue.size());
         Integer[] dimensions = arrangeDimensions(htblColNameValue);
         Object[] objarrValues = new Object[dimensions.length];
 
@@ -126,14 +127,6 @@ public class Octree implements Serializable {
             j++;
         }
 
-        for (int i = 0; i < dimensions.length; i++) {
-            System.out.print("Dimension(in octree) " + dimensions[i] + " ");
-        }
-        System.out.println();
-        for (int i = 0; i < objarrValues.length; i++) {
-            System.out.print("Value(in octree) " + objarrValues[i] + " ");
-        }
-        System.out.println();
 
         return _nodeRoot.getRowsFromCondition(objarrValues, dimensions);
     }

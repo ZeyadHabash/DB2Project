@@ -87,11 +87,13 @@ public class Node implements Serializable {
     }
 
     public void removeEntry(Object[] objarrEntry) {
-        for (OctreeEntry entry : _octreeEntryEntries) {
-            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry))
+        for (int i = 0; i < _intEntriesCount; i++) {
+            OctreeEntry entry = _octreeEntryEntries.get(i);
+            if (Arrays.equals(entry.get_objarrEntryValues(), objarrEntry)) {
                 _octreeEntryEntries.remove(entry);
+                _intEntriesCount--;
+            }
         }
-        _intEntriesCount--;
     }
 
     public OctreeEntry getEntry(Object[] objarrEntry) {
@@ -139,22 +141,12 @@ public class Node implements Serializable {
         Vector<OctreeEntry> entryvecRange = new Vector<OctreeEntry>();
 
 
-        for (int i = 0; i < intarrDimensions.length; i++) {
-            System.out.print("Dimension(in node) " + intarrDimensions[i] + " ");
-        }
-        System.out.println();
-        for (int i = 0; i < objarrValues.length; i++) {
-            System.out.print("Value(in node) " + objarrValues[i] + " ");
-        }
-        System.out.println();
-
 
         for (int i = 0; i < intarrDimensions.length; i++) {
             if (valueFits(objarrValues[i], intarrDimensions[i])) {
                 if (isLeaf()) {
                     for (OctreeEntry entry : _octreeEntryEntries) {
                         if (entry.conditionFitsEntry(objarrValues, intarrDimensions)) {
-                            System.out.println("entry added: " + entry);
                             entryvecRange.add(entry);
                         }
                     }
@@ -421,7 +413,7 @@ public class Node implements Serializable {
                 try {
                     Date min = (Date) _objarrMinValues[i];
                     Date max = (Date) _objarrMaxValues[i];
-                    Date midDate = new Date(min.getTime() + max.getTime() / 2);
+                    Date midDate = new Date((min.getTime() + max.getTime()) / 2);
                     String formattedDate = new SimpleDateFormat(DBApp.dateFormat).format(midDate);
                     objMidValues[i] = new SimpleDateFormat(DBApp.dateFormat).parse(formattedDate);
                 } catch (ParseException e) {
@@ -519,7 +511,8 @@ public class Node implements Serializable {
     public String toString() {
         String str = "";
         if (isLeaf()) {
-            str += "Leaf Node: ";
+            str += "Leaf Node: \n";
+            str += "Ranges: \n Min: " + Arrays.toString(_objarrMinValues) + "\n Max: " + Arrays.toString(_objarrMaxValues) + "\n Mid: " + Arrays.toString(_objarrMidValues) + "\n Entries: \n";
             for (int i = 0; i < _intEntriesCount; i++) {
                 str += _octreeEntryEntries.get(i).toString() + " | ";
             }
@@ -527,7 +520,9 @@ public class Node implements Serializable {
             if (isRoot())
                 str += "Root Node: \n";
             else
-                str += "Internal Node: ";
+                str += "Internal Node: \n";
+
+            str += "Ranges: \n Min: " + Arrays.toString(_objarrMinValues) + "\n Max: " + Arrays.toString(_objarrMaxValues) + "\n Mid: " + Arrays.toString(_objarrMidValues) + "\n Entries: \n";
             for (int i = 0; i < _nodearrChildren.length; i++) {
                 str += _nodearrChildren[i].toString() + " \n";
             }
