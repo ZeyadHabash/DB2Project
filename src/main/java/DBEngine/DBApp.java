@@ -954,8 +954,8 @@ public class DBApp {
                 currentSetOfRows.add(table.getRowsFromSQLTerm(arrSQLTerms[i]));
             }
             result = currentSetOfRows.get(0);
-            for (int j = 0; j < strarrOperators.length - 1; j++) {
-                result = performOperation(result, currentSetOfRows.get(j + 1), strarrOperators[j]);
+            for (int i = 0; i < strarrOperators.length; i++) {
+                result = performOperation(result, currentSetOfRows.get(i + 1), strarrOperators[i]);
             }
         }
         return result;
