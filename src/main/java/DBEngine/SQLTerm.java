@@ -1,14 +1,23 @@
 package DBEngine;
+
+import Exceptions.DBAppException;
+
 public class SQLTerm {
-    String _strTableName;
-    String _strColumnName;
-    String _strOperator;
-    Object _objValue;
+    public String _strTableName;
+    public String _strColumnName;
+    public String _strOperator;
+    public Object _objValue;
+    public SQLTerm() {
+    }
     public SQLTerm(String strTableName, String strColumnName, String strOperator, Object objValue) {
         _strTableName = strTableName;
         _strColumnName = strColumnName;
         _strOperator = strOperator;
         _objValue = objValue;
+    }
+
+    public String toString(){
+        return _strTableName + " " + _strColumnName + " " + _strOperator + " " + _objValue;
     }
     public String get_strTableName() {
         return _strTableName;
@@ -25,8 +34,11 @@ public class SQLTerm {
     public String get_strOperator() {
         return _strOperator;
     }
-    public void set_strOperator(String _strOperator) {
-        this._strOperator = _strOperator;
+    public void set_strOperator(String _strOperator) throws DBAppException {
+        if (_strOperator.equals("=") || _strOperator.equals("!=") || _strOperator.equals(">") || _strOperator.equals("<") || _strOperator.equals(">=") || _strOperator.equals("<="))
+            this._strOperator = _strOperator;
+        else
+            throw new DBAppException("Invalid operator");
     }
     public Object get_objValue() {
         return _objValue;
